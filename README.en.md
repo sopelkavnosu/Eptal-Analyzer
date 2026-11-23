@@ -7,6 +7,8 @@ Attribution to the original author and the **GNU General Public License v3.0 (GP
 
 [Русская версия](README.md)
 
+> **Status:** this program is under active development. Bugs, rough edges, and behavior changes are possible.
+
 ---
 
 ## What Was Done and Updated

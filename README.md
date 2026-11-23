@@ -11,6 +11,14 @@
 
 ---
 
+
+## Скриншоты
+
+| | |
+|---|---|
+| ![Скриншот 1](img/screenshots/screenshot-1.png) | ![Скриншот 2](img/screenshots/screenshot-2.png) |
+| ![Скриншот 3](img/screenshots/screenshot-3.png) | ![Скриншот 4](img/screenshots/screenshot-4.png) |
+
 ## Что сделано и что обновлено
 
 ### Основные обновления

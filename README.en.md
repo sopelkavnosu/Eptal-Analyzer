@@ -11,6 +11,14 @@ Attribution to the original author and the **GNU General Public License v3.0 (GP
 
 ---
 
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Screenshot 1](img/screenshots/screenshot-1.png) | ![Screenshot 2](img/screenshots/screenshot-2.png) |
+| ![Screenshot 3](img/screenshots/screenshot-3.png) | ![Screenshot 4](img/screenshots/screenshot-4.png) |
+
 ## What Was Done and Updated
 
 ### Major Updates

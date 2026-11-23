@@ -20,6 +20,17 @@
 <p><a href="img/screenshots/screenshot-4.png"><img src="img/screenshots/screenshot-4.png" width="100%" alt="Eptal-Analyzer — скриншот 4"></a></p>
 <p><a href="img/screenshots/screenshot-5.png"><img src="img/screenshots/screenshot-5.png" width="100%" alt="Eptal-Analyzer — скриншот 5"></a></p>
 
+## Требования перед запуском
+
+Для корректной работы Eptal-Analyzer перед использованием установите:
+
+| Компонент | Для чего нужен | Официальная ссылка |
+|---|---|---|
+| **Nmap** | Сканирование портов, определение сервисов/ОС, NSE-скрипты, Attack Surface | [Скачать Nmap (официальный сайт)](https://nmap.org/download.html) |
+| **Npcap** | Захват сетевых пакетов для анализа трафика (Scapy/sniff) | [Скачать Npcap (официальный сайт)](https://npcap.com/#download) |
+
+> Рекомендуется устанавливать Nmap и Npcap с официальных сайтов. После установки Nmap убедитесь, что `nmap` доступен в `PATH` (или перезапустите систему/терминал).
+
 ## Что сделано и что обновлено
 
 ### Основные обновления

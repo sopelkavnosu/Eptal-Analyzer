@@ -20,6 +20,17 @@ Attribution to the original author and the **GNU General Public License v3.0 (GP
 <p><a href="img/screenshots/screenshot-4.png"><img src="img/screenshots/screenshot-4.png" width="100%" alt="Eptal-Analyzer — screenshot 4"></a></p>
 <p><a href="img/screenshots/screenshot-5.png"><img src="img/screenshots/screenshot-5.png" width="100%" alt="Eptal-Analyzer — screenshot 5"></a></p>
 
+## Prerequisites
+
+Install these components before using Eptal-Analyzer for full functionality:
+
+| Component | Purpose | Official link |
+|---|---|---|
+| **Nmap** | Port scanning, service/OS detection, NSE scripts, Attack Surface | [Download Nmap (official)](https://nmap.org/download.html) |
+| **Npcap** | Packet capture for traffic analysis (Scapy/sniff) | [Download Npcap (official)](https://npcap.com/#download) |
+
+> It is recommended to install Nmap and Npcap from the official websites. After installing Nmap, make sure `nmap` is available in `PATH` (or restart your system/terminal).
+
 ## What Was Done and Updated
 
 ### Major Updates

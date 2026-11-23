@@ -12,7 +12,7 @@ Attribution to the original author and the **GNU General Public License v3.0 (GP
 ---
 
 
-## Screenshots
+## Screenshots — Eptal-Analyzer
 
 | | |
 |---|---|

@@ -43,7 +43,8 @@ Install these components before using Eptal-Analyzer for full functionality:
 - Splash screen credits L0p4Map and shows the current Eptal-Analyzer version.
 
 #### 2. New Features
-- **Network map** — device and connection visualization.
+- **RU/EN language switch** - you can switch the interface between Russian and English in Settings (gear icon in the sidebar).
+- **Network map** - device and connection visualization.
 - **Network diagnostics** — adapter, Wi-Fi, DHCP/DNS, gateway, internet, MTU.
 - **Ping / Traceroute / Port scan for any IP** — you can enter any IP address or host and run availability check (ping), route tracing (traceroute), and port/service scanning via Nmap.
 - **Inventory and journal** — device records, appearance history, events/changes.

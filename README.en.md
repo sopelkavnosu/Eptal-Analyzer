@@ -14,10 +14,14 @@ Attribution to the original author and the **GNU General Public License v3.0 (GP
 
 ## Screenshots — Eptal-Analyzer
 
-| | |
-|---|---|
-| ![Screenshot 1](img/screenshots/screenshot-1.png) | ![Screenshot 2](img/screenshots/screenshot-2.png) |
-| ![Screenshot 3](img/screenshots/screenshot-3.png) | ![Screenshot 4](img/screenshots/screenshot-4.png) |
+<p>
+  <a href="img/screenshots/screenshot-1.png"><img src="img/screenshots/screenshot-1.png" width="420" alt="Eptal-Analyzer — screenshot 1"></a>
+  <a href="img/screenshots/screenshot-2.png"><img src="img/screenshots/screenshot-2.png" width="420" alt="Eptal-Analyzer — screenshot 2"></a>
+</p>
+<p>
+  <a href="img/screenshots/screenshot-3.png"><img src="img/screenshots/screenshot-3.png" width="420" alt="Eptal-Analyzer — screenshot 3"></a>
+  <a href="img/screenshots/screenshot-4.png"><img src="img/screenshots/screenshot-4.png" width="420" alt="Eptal-Analyzer — screenshot 4"></a>
+</p>
 
 ## What Was Done and Updated
 

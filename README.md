@@ -75,7 +75,7 @@
 
 ---
 
-## Attribution / License
+## GPL-3.0 license
 
 - Original project: **L0p4Map** by L0p4.
 - Fork/enhancements: **Eptal-Analyzer**.

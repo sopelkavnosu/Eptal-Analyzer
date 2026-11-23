@@ -1,17 +1,45 @@
 import argparse
 import csv
 import json
+import logging
 import os
 import sys
 
-__version__ = "1.0.0"
+from core.version import __version__  # Версия приложения.
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 
+def _setup_logging():
+    # Настройка логирования в файл для диагностики релизных запусков без консоли.
+    log_dir = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "Eptal-Analyzer")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, "eptal-analyzer.log")
+    logging.basicConfig(
+        filename=log_path,
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        encoding="utf-8",
+    )
+    logging.getLogger(__name__).info("Eptal-Analyzer started")
+
+
 def _check_root():
-    if os.getuid() != 0:
-        print("error: root privileges required (run with sudo)", file=sys.stderr)
+    # Проверка привилегий администратора Windows.
+    try:
+        import ctypes
+
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except Exception:
+        is_admin = False
+    if not is_admin:
+        msg = "Eptal-Analyzer требует запуск от имени администратора."
+        print(f"error: {msg}", file=sys.stderr)
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, msg, "Eptal-Analyzer", 0x10)
+        except Exception:
+            pass
         sys.exit(1)
 
 
@@ -128,7 +156,19 @@ def cmd_gui(_args):
     )
     os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
 
+    # Иконка приложения и идентификатор для корректного значка на панели задач Windows.
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("EptalAnalyzer.App")
+    except Exception:
+        pass
+
     app = QApplication(sys.argv)
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    icon_path = os.path.join(base, "ui", "assets", "logo.png")
+    if os.path.exists(icon_path):
+        from PyQt6.QtGui import QIcon
+        app.setWindowIcon(QIcon(icon_path))
     logo = LogoIniziale()
     logo.show()
     app.processEvents()
@@ -139,23 +179,23 @@ def cmd_gui(_args):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="l0p4map",
-        description="L0p4Map — network monitoring & visualization tool",
+        prog="eptal-analyzer",
+        description="Eptal-Analyzer — network monitoring & visualization tool (based on L0p4Map)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "examples:\n"
-            "  sudo l0p4map                          launch GUI\n"
-            "  sudo l0p4map scan                     scan local subnet, table output\n"
-            "  sudo l0p4map scan -t 192.168.1.0/24   scan specific subnet\n"
-            "  sudo l0p4map scan -o json             JSON output\n"
-            "  sudo l0p4map scan -o csv -f out.csv   save CSV to file\n"
+            "  run-l0p4map.bat                              launch GUI as Administrator\n"
+            "  python main.py scan                          scan local subnet, table output\n"
+            "  python main.py scan -t 192.168.1.0/24        scan specific subnet\n"
+            "  python main.py scan -o json                  JSON output\n"
+            "  python main.py scan -o csv -f out.csv        save CSV to file\n"
         ),
     )
     parser.add_argument(
         "-V",
         "--version",
         action="version",
-        version=f"l0p4map {__version__}",
+        version=f"eptal-analyzer {__version__}",
     )
 
     sub = parser.add_subparsers(dest="command")
@@ -195,6 +235,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main():
+    _setup_logging()
     parser = build_parser()
     args = parser.parse_args()
 

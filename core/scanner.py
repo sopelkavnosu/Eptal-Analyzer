@@ -1,18 +1,19 @@
 import csv as _csv
 import ipaddress
+import logging
 import os
-import platform
 import re
 import socket
-import struct
+import ssl
 import subprocess
 import threading
 import time
-from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import psutil
-from scapy.all import ARP, ICMP, TCP, UDP, Ether, conf, sniff, sr1, srp
+from scapy.all import ARP, ICMP, Ether, conf, sr1, srp
 from scapy.all import IP as ScapyIP
 
 _vendor_cache: dict[str, str] = {}
@@ -113,57 +114,11 @@ class ContinuousMonitor:
                 if self._callback:
                     self._callback(hosts)
             except Exception:
-                pass
+                logger.debug("ContinuousMonitor iteration failed", exc_info=True)
             for _ in range(self._interval):
                 if not self._running:
                     break
                 time.sleep(1)
-
-
-def capture_traffic(iface: str, duration: int = 15) -> list[dict]:
-    connections = defaultdict(
-        lambda: {"packets": 0, "bytes": 0, "proto": "OTHER", "port": "-"}
-    )
-
-    def process(pkt):
-        if ScapyIP not in pkt:
-            return
-        src = pkt[ScapyIP].src
-        dst = pkt[ScapyIP].dst
-        size = len(pkt)
-        proto = "OTHER"
-        port = "-"
-
-        if TCP in pkt:
-            proto = "TCP"
-            port = str(pkt[TCP].dport)
-        elif UDP in pkt:
-            proto = "UDP"
-            port = str(pkt[UDP].dport)
-
-        key = tuple(sorted([src, dst]))
-        connections[key]["packets"] += 1
-        connections[key]["bytes"] += size
-        connections[key]["proto"] = proto
-        connections[key]["port"] = port
-
-    sniff(iface=iface, prn=process, timeout=duration, store=False, filter="ip")
-
-    edges = []
-    for (src, dst), data in connections.items():
-        edges.append(
-            {
-                "src": src,
-                "dst": dst,
-                "packets": data["packets"],
-                "bytes": data["bytes"],
-                "proto": data["proto"],
-                "port": data["port"],
-                "weight": min(data["packets"] / 10, 10),
-            }
-        )
-
-    return sorted(edges, key=lambda e: e["packets"], reverse=True)
 
 
 def _load_oui_db():
@@ -182,39 +137,8 @@ def _load_oui_db():
                 _oui_db[oui] = name
 
 
-def _get_interfaces_from_ip_addr() -> dict[str, str]:
-    result = {}
-    try:
-        out = subprocess.check_output(
-            ["ip", "addr", "show"],
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
-        current_iface = None
-        for line in out.splitlines():
-            iface_match = re.match(r"^\d+:\s+(\S+?)(?:@\S+)?:\s+<([^>]*)>", line)
-            if iface_match:
-                current_iface = iface_match.group(1)
-                flags = iface_match.group(2).split(",")
-                if "UP" not in flags:
-                    current_iface = None
-                elif current_iface not in result:
-                    result[current_iface] = ""
-                continue
-            if current_iface:
-                addr_match = re.match(r"^\s+inet\s+(\d+\.\d+\.\d+\.\d+)/\d+", line)
-                if addr_match:
-                    ip = addr_match.group(1)
-                    if not ip.startswith("127."):
-                        result[current_iface] = ip
-    except Exception:
-        pass
-    return result
-
-
 def get_network_interfaces():
     interfaces = []
-    seen: set[str] = set()
     addrs = psutil.net_if_addrs()
     stats = psutil.net_if_stats()
 
@@ -228,20 +152,8 @@ def get_network_interfaces():
         if ip.startswith("127."):
             continue
         interfaces.append({"name": iface, "ip": ip})
-        seen.add(iface)
-
-    if platform.system() == "Linux":
-        fallback = _get_interfaces_from_ip_addr()
-        for iface, ip in fallback.items():
-            if iface not in seen and iface != "lo":
-                interfaces.append({"name": iface, "ip": ip})
 
     return interfaces
-
-
-def check_root():
-    if os.getuid() != 0:
-        raise PermissionError("Execute the program with SUDO!")
 
 
 def get_local_subnet(iface_name=None) -> str:
@@ -273,73 +185,30 @@ def get_local_subnet(iface_name=None) -> str:
 
 
 def get_default_gateway() -> str | None:
-    if platform.system() == "Windows":
-        try:
-            out = subprocess.check_output(
-                ["route", "print", "0.0.0.0"],
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-            for line in out.splitlines():
-                parts = line.strip().split()
-                if len(parts) >= 3 and parts[0] == "0.0.0.0" and parts[1] == "0.0.0.0":
-                    return parts[2]
-        except Exception:
-            pass
-        try:
-            out = subprocess.check_output(
-                ["powershell", "-Command", "(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Select-Object -First 1).NextHop"],
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-            gw = out.strip()
-            if gw:
-                return gw
-        except Exception:
-            pass
-    elif platform.system() == "Darwin":
-        try:
-            out = subprocess.check_output(
-                ["netstat", "-rn"],
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-            for line in out.splitlines():
-                parts = line.strip().split()
-                if len(parts) >= 2 and parts[0] == "default":
-                    return parts[1]
-        except Exception:
-            pass
-    else:
-        try:
-            with open("/proc/net/route") as f:
-                for line in f.readlines()[1:]:
-                    fields = line.strip().split()
-                    if len(fields) < 3:
-                        continue
-                    if fields[1] == "00000000":
-                        gw_hex = fields[2]
-                        gw_int = int(gw_hex, 16)
-                        gw = socket.inet_ntoa(struct.pack("<I", gw_int))
-                        if gw and not gw.startswith("0."):
-                            return gw
-        except Exception:
-            pass
-        try:
-            out = subprocess.check_output(
-                ["ip", "route", "show", "default"],
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-            for token in out.split():
-                if token not in ("default", "via", "dev", "proto", "metric", "src"):
-                    try:
-                        ipaddress.ip_address(token)
-                        return token
-                    except ValueError:
-                        pass
-        except Exception:
-            pass
+    # Получение шлюза по умолчанию в Windows.
+    try:
+        out = subprocess.check_output(
+            ["route", "print", "0.0.0.0"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        for line in out.splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 3 and parts[0] == "0.0.0.0" and parts[1] == "0.0.0.0":
+                return parts[2]
+    except Exception:
+        logger.debug("get_default_gateway: route print failed", exc_info=True)
+    try:
+        out = subprocess.check_output(
+            ["powershell", "-Command", "(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Select-Object -First 1).NextHop"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        gw = out.strip()
+        if gw:
+            return gw
+    except Exception:
+        logger.debug("get_default_gateway: PowerShell fallback failed", exc_info=True)
     return None
 
 
@@ -385,20 +254,7 @@ def _netbios_hostname(ip: str) -> str | None:
             if name:
                 return name
     except Exception:
-        pass
-    return None
-
-
-def _mdns_hostname(ip: str) -> str | None:
-    try:
-        old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(1)
-        name = socket.gethostbyaddr(ip)[0]
-        socket.setdefaulttimeout(old_timeout)
-        if name and name != ip:
-            return name
-    except Exception:
-        pass
+        logger.debug("_netbios_hostname failed for %s", ip, exc_info=True)
     return None
 
 
@@ -407,9 +263,6 @@ def resolve_hostname(ip: str) -> str:
     if name:
         return name
     name = _netbios_hostname(ip)
-    if name:
-        return name
-    name = _mdns_hostname(ip)
     if name:
         return name
     return ip
@@ -422,7 +275,7 @@ def _probe_ttl(ip: str) -> int | None:
         if reply and ICMP in reply:
             return reply[ScapyIP].ttl
     except Exception:
-        pass
+        logger.debug("_probe_ttl failed for %s", ip, exc_info=True)
     return None
 
 
@@ -436,8 +289,11 @@ def _ttl_to_os_hint(ttl: int | None) -> str:
     return "network_device"
 
 
-def _probe_open_ports(ip: str, ports: list[int], timeout: float = 0.5) -> list[int]:
+def _probe_port_states(ip: str, ports: list[int], timeout: float = 0.5) -> tuple[list[int], list[int], list[int]]:
+    # Проверка портов: открытые, отфильтрованные (таймаут/no-response), закрытые (refused).
     open_ports = []
+    filtered_ports = []
+    closed_ports = []
     for port in ports:
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -446,8 +302,21 @@ def _probe_open_ports(ip: str, ports: list[int], timeout: float = 0.5) -> list[i
             sock.close()
             if result == 0:
                 open_ports.append(port)
+            elif result in (10061, 111, 61):  # connection refused - хост отвечает, порт закрыт
+                closed_ports.append(port)
+            elif result in (10060, 110, 11, 10035):  # timeout/no-response - вероятно filtered
+                filtered_ports.append(port)
+            else:
+                filtered_ports.append(port)
+        except socket.timeout:
+            filtered_ports.append(port)
         except Exception:
-            pass
+            logger.debug("_probe_port_states failed for %s:%s", ip, port, exc_info=True)
+    return open_ports, filtered_ports, closed_ports
+
+
+def _probe_open_ports(ip: str, ports: list[int], timeout: float = 0.5) -> list[int]:
+    open_ports, _, _ = _probe_port_states(ip, ports, timeout=timeout)
     return open_ports
 
 
@@ -563,10 +432,13 @@ def _infer_role(
             "lg electronics",
             "sony mobile",
             "zte",
+            "huawei",
+            "honor",
+            "google",
         ]
     ):
         return "mobile"
-    if any(k in h for k in ["android", "iphone", "phone", "mobile"]):
+    if any(k in h for k in ["android", "iphone", "phone", "mobile", "tablet", "ipad", "galaxy", "pixel"]):
         return "mobile"
 
     if os_hint == "network_device":
@@ -627,9 +499,9 @@ def _probe_snmp_sysdescr(ip: str) -> str | None:
             try:
                 return payload.decode("ascii", errors="ignore").strip()
             except Exception:
-                pass
+                logger.debug("_probe_snmp_sysdescr decode failed for %s", ip, exc_info=True)
     except Exception:
-        pass
+        logger.debug("_probe_snmp_sysdescr failed for %s", ip, exc_info=True)
     return None
 
 
@@ -642,14 +514,22 @@ def _enrich_host(host: dict, known_gateway_ip: str | None) -> dict:
     host["ttl"] = ttl
     host["os_hint"] = _ttl_to_os_hint(ttl)
 
-    open_ports = _probe_open_ports(ip, TOPOLOGY_PROBE_PORTS, timeout=0.4)
+    open_ports, filtered_ports, closed_ports = _probe_port_states(ip, TOPOLOGY_PROBE_PORTS, timeout=0.4)
     host["open_ports"] = open_ports
+    host["filtered_ports"] = filtered_ports
+    host["closed_ports"] = closed_ports
     host["embedded_device"] = fingerprint_embedded_device(ip, open_ports) if open_ports else ""
 
     snmp_desc = None
     if 161 in open_ports or ttl is None or (ttl is not None and ttl > 128):
         snmp_desc = _probe_snmp_sysdescr(ip)
     host["snmp_desc"] = snmp_desc or ""
+
+    # Дополнительная информация по устройству.
+    host["http_title"] = _probe_http_title(ip, open_ports)
+    host["tls_cert"] = _probe_tls_cert(ip, open_ports)
+    host["smb_info"] = _probe_smb_info(ip, open_ports)
+    host["camera_hint"] = _detect_camera_hint(ip, host["vendor"], host["hostname"], open_ports, host["http_title"])
 
     vendor_for_role = host["vendor"]
     if snmp_desc:
@@ -684,23 +564,51 @@ def scan_network(subnet: str) -> list[dict]:
             seen_macs[mac] = ip
 
     if known_gateway and known_gateway not in seen_macs.values():
-        gw_mac = _arp_resolve_mac(known_gateway, subnet)
+        gw_mac = _arp_resolve_mac(known_gateway)
         if gw_mac:
             seen_macs[gw_mac] = known_gateway
 
+    # Осторожный TCP-fallback для хостов, не ответивших на ARP (только небольшие подсети).
+    try:
+        net = ipaddress.IPv4Network(subnet, strict=False)
+        known_ips = set(seen_macs.values())
+        if net.num_addresses <= 256:
+            candidates = [str(ip) for ip in net.hosts() if str(ip) not in known_ips]
+            def _probe_tcp(ip):
+                if _tcp_ping(ip, ports=(80, 443, 445, 22), timeout=0.35):
+                    return ip
+                return None
+            with ThreadPoolExecutor(max_workers=32) as ex:
+                for future in as_completed([ex.submit(_probe_tcp, ip) for ip in candidates]):
+                    found = future.result()
+                    if found:
+                        # MAC неизвестен, но хост отвечает по TCP - добавляем как признак.
+                        seen_macs[f"tcp:{found}"] = found
+    except Exception:
+        logger.debug("scan_network TCP fallback failed", exc_info=True)
+
     hosts = []
     for mac, ip in seen_macs.items():
+        is_tcp = isinstance(mac, str) and mac.startswith("tcp:")
         hosts.append(
             {
                 "ip": ip,
-                "mac": mac,
+                "mac": "" if is_tcp else mac,
                 "hostname": ip,
-                "vendor": "...",
+                "vendor": "" if is_tcp else "...",
                 "ttl": None,
                 "os_hint": "unknown",
                 "open_ports": [],
+                "filtered_ports": [],
+                "closed_ports": [],
                 "role": "unknown",
                 "snmp_desc": "",
+                "http_title": "",
+                "tls_cert": "",
+                "smb_info": "",
+                "camera_hint": "",
+                "embedded_device": "",
+                "discovery": "tcp" if is_tcp else "arp",
             }
         )
 
@@ -713,20 +621,21 @@ def scan_network(subnet: str) -> list[dict]:
             try:
                 results.append(future.result())
             except Exception:
+                logger.debug("Host enrichment failed", exc_info=True)
                 results.append(futures[future])
 
     results.sort(key=lambda h: [int(x) for x in h["ip"].split(".")])
     return results
 
 
-def _arp_resolve_mac(ip: str, subnet: str) -> str | None:
+def _arp_resolve_mac(ip: str) -> str | None:
     try:
         pkt = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip)
         ans, _ = srp(pkt, timeout=1, retry=1, verbose=False)
         for _, reply in ans:
             return reply[Ether].src
     except Exception:
-        pass
+        logger.debug("_arp_resolve_mac failed for %s", ip, exc_info=True)
 
 
 EMBEDDED_DEVICE_SIGNATURES = {
@@ -753,7 +662,102 @@ def _grab_http_banner(ip: str, port: int, timeout: float = 1.0) -> str:
         sock.close()
         return data.decode("latin-1", errors="ignore")
     except Exception:
+        logger.debug("_grab_http_banner failed for %s:%s", ip, port, exc_info=True)
         return ""
+
+
+def _extract_http_title(banner: str) -> str:
+    # Извлечение заголовка HTML-страницы из HTTP-ответа.
+    m = re.search(r"<title[^>]*>(.*?)</title>", banner, re.IGNORECASE | re.DOTALL)
+    if not m:
+        return ""
+    title = re.sub(r"\s+", " ", m.group(1)).strip()
+    return title[:120]
+
+
+def _probe_http_title(ip: str, open_ports: list[int]) -> str:
+    for port in (p for p in (80, 8080, 8000, 8888, 443, 8443) if p in open_ports):
+        banner = _grab_http_banner(ip, port)
+        title = _extract_http_title(banner)
+        if title:
+            return title
+    return ""
+
+
+def _probe_tls_cert(ip: str, open_ports: list[int]) -> str:
+    # Получение краткой информации о TLS-сертификате.
+    for port in (p for p in (443, 8443) if p in open_ports):
+        try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            with socket.create_connection((ip, port), timeout=1.5) as sock:
+                with ctx.wrap_socket(sock, server_hostname=ip) as ssock:
+                    der = ssock.getpeercert(binary_form=True)
+            cn = ""
+            # Простой поиск CN (OID 2.5.4.3) в DER.
+            oid = b"\x06\x03\x55\x04\x03"
+            idx = der.find(oid)
+            if idx != -1:
+                rest = der[idx + len(oid):]
+                if len(rest) >= 2:
+                    # Пропускаем тип строки и длину.
+                    t = rest[0]
+                    l = rest[1]
+                    start = 2
+                    if l & 0x80:
+                        n = l & 0x7F
+                        l = int.from_bytes(rest[2:2+n], "big")
+                        start = 2 + n
+                    cn = rest[start:start+l].decode("utf-8", errors="ignore").strip()
+            return f"CN={cn}"[:160] if cn else "Сертификат получен"
+        except Exception:
+            logger.debug("_probe_tls_cert failed for %s:%s", ip, port, exc_info=True)
+            continue
+    return ""
+
+
+def _probe_smb_info(ip: str, open_ports: list[int]) -> str:
+    # Базовая проверка SMB: порт открыт и ответ на negotiate.
+    if 445 not in open_ports and 139 not in open_ports:
+        return ""
+    try:
+        with socket.create_connection((ip, 445), timeout=1.5) as sock:
+            # Минимальный SMB2 negotiate request.
+            pkt = bytes.fromhex(
+                "00000054fe534d424000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            ) + b"\x00" * 4
+            sock.sendall(pkt)
+            data = sock.recv(4)
+            if data:
+                return "SMB порт открыт (445)"
+    except Exception:
+        logger.debug("_probe_smb_info failed for %s", ip, exc_info=True)
+    return "SMB порт открыт" if 445 in open_ports or 139 in open_ports else ""
+
+
+def _detect_camera_hint(ip: str, vendor: str, hostname: str, open_ports: list[int], http_title: str) -> str:
+    # Эвристика: возможно камера/видеоустройство.
+    reasons = []
+    v = (vendor or "").lower()
+    h = (hostname or "").lower()
+    t = (http_title or "").lower()
+    cam_vendors = ["hikvision", "dahua", "axis", "hanwha", "uniview", "reolink", "tapo", "ezviz", "vivotek", "foscam", "amcrest"]
+    if any(x in v for x in cam_vendors):
+        reasons.append("vendor")
+    if any(x in h for x in ["cam", "camera", "ipc", "dvr", "nvr"]):
+        reasons.append("hostname")
+    if any(x in t for x in ["camera", "ipcam", "webcam", "dvr", "nvr", "onvif"]):
+        reasons.append("http title")
+    cam_ports = {554, 8000, 8899, 37777, 34567}
+    found_ports = sorted(set(open_ports) & cam_ports)
+    if found_ports:
+        reasons.append("ports:" + ",".join(map(str, found_ports)))
+    if 554 in open_ports:
+        reasons.append("RTSP")
+    if not reasons:
+        return ""
+    return "Возможно камера (" + ", ".join(dict.fromkeys(reasons)) + ")"
 
 
 def fingerprint_embedded_device(ip: str, open_ports: list[int]) -> str:
@@ -780,18 +784,19 @@ def _local_networks() -> list[ipaddress.IPv4Network]:
                             )
                         )
                     except Exception:
-                        pass
+                        logger.debug("_local_networks: failed to parse interface address", exc_info=True)
     except Exception:
-        pass
+        logger.debug("_local_networks failed", exc_info=True)
     return nets
 
 
-def _is_local_ip(ip: str) -> bool:
+def _is_local_ip(ip: str, nets: list[ipaddress.IPv4Network] | None = None) -> bool:
     try:
         addr = ipaddress.ip_address(ip)
     except ValueError:
         return False
-    return any(addr in net for net in _local_networks())
+    nets = nets if nets is not None else _local_networks()
+    return any(addr in net for net in nets)
 
 
 def parse_target_range(target: str) -> list[str]:
@@ -818,7 +823,8 @@ def is_target_fully_local(target: str) -> bool:
     ips = parse_target_range(target)
     if not ips:
         return False
-    return all(_is_local_ip(ip) for ip in ips)
+    nets = _local_networks()
+    return all(_is_local_ip(ip, nets) for ip in ips)
 
 
 def _traceroute_hops(ip: str, max_hops: int = 15, timeout: float = 0.8) -> list[str | None]:
@@ -842,28 +848,50 @@ def _last_known_hop(hops: list[str | None]) -> str | None:
     return None
 
 
+def _tcp_ping(ip: str, ports: tuple[int, ...] = (80, 443, 22, 445, 3389), timeout: float = 0.8) -> bool:
+    # TCP-fallback: считаем хост вероятно доступным, если порт открыт/закрыт, но отвечает.
+    for port in ports:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(timeout)
+                res = sock.connect_ex((ip, port))
+                if res in (0, 10061, 111):  # открыт или активно отказал - хост отвечает
+                    return True
+        except Exception:
+            continue
+    return False
+
+
 def scan_range(target: str) -> list[dict]:
     conf.verb = 0
     known_gateway = get_default_gateway()
     ip_list = parse_target_range(target)
+    nets = _local_networks()
 
     def probe(ip: str) -> dict | None:
-        if _is_local_ip(ip):
-            mac = _arp_resolve_mac(ip, ip)
+        if _is_local_ip(ip, nets):
+            mac = _arp_resolve_mac(ip)
             if not mac:
-                return None
-            return {"ip": ip, "mac": mac, "router_hop": None}
+                # Fallback: иногда ARP не проходит, но хост отвечает по TCP.
+                if not _tcp_ping(ip):
+                    return None
+                return {"ip": ip, "mac": "", "router_hop": None, "discovery": "tcp"}
+            return {"ip": ip, "mac": mac, "router_hop": None, "discovery": "arp"}
 
         alive = sr1(ScapyIP(dst=ip) / ICMP(), timeout=1.0, verbose=False)
+        discovery = "icmp"
         if alive is None:
-            return None
+            # Fallback для хостов с блокировкой ICMP.
+            if not _tcp_ping(ip):
+                return None
+            discovery = "tcp"
 
         hops = _traceroute_hops(ip)
         if hops and hops[-1] == ip:
             hop = _last_known_hop(hops[:-1]) or known_gateway
         else:
             hop = _last_known_hop(hops) or known_gateway
-        return {"ip": ip, "mac": "", "router_hop": hop}
+        return {"ip": ip, "mac": "", "router_hop": hop, "discovery": discovery}
 
     raw_hosts = []
     with ThreadPoolExecutor(max_workers=16) as executor:
@@ -884,10 +912,17 @@ def scan_range(target: str) -> list[dict]:
                 "ttl": None,
                 "os_hint": "unknown",
                 "open_ports": [],
+                "filtered_ports": [],
+                "closed_ports": [],
                 "role": "unknown",
                 "snmp_desc": "",
                 "embedded_device": "",
+                "http_title": "",
+                "tls_cert": "",
+                "smb_info": "",
+                "camera_hint": "",
                 "router_hop": raw["router_hop"],
+                "discovery": raw.get("discovery", ""),
             }
         )
 
@@ -900,6 +935,7 @@ def scan_range(target: str) -> list[dict]:
             try:
                 results.append(future.result())
             except Exception:
+                logger.debug("Host enrichment failed", exc_info=True)
                 results.append(futures[future])
 
     results.sort(key=lambda h: [int(x) for x in h["ip"].split(".")])

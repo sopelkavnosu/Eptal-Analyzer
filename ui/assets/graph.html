@@ -28,7 +28,7 @@
     padding: 10px 14px;
     font-family: monospace;
     font-size: 11px;
-    color: #555;
+    color: #d0d0d0;
     z-index: 100;
     pointer-events: none;
   }
@@ -39,9 +39,9 @@
     margin-bottom: 4px;
   }
   #legend .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
     border: 2px solid;
     flex-shrink: 0;
   }
@@ -61,7 +61,7 @@
     right: 16px;
     font-family: monospace;
     font-size: 11px;
-    color: #333;
+    color: #b0b0b0;
     pointer-events: none;
   }
 
@@ -74,7 +74,7 @@
     padding: 8px 12px;
     font-family: monospace;
     font-size: 10px;
-    color: #444;
+    color: #b8b8b8;
     z-index: 100;
     pointer-events: none;
     min-width: 190px;
@@ -85,7 +85,7 @@
     gap: 16px;
     margin-bottom: 3px;
   }
-  #topo-panel .tp-label { color: #333; }
+  #topo-panel .tp-label { color: #cfcfcf; }
   #topo-panel .tp-value { color: #00ff9977; text-align: right; font-size: 10px; }
 
   #layout-btn {
@@ -93,18 +93,19 @@
     bottom: 16px;
     right: 16px;
     background: #111111;
-    border: 1px solid #1a1a1a;
-    color: #444;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    color: #bfbfbf;
     font-family: monospace;
-    font-size: 10px;
-    padding: 6px 12px;
+    font-size: 12px;
+    padding: 9px 16px;
     cursor: pointer;
     z-index: 100;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     user-select: none;
   }
-  #layout-btn:hover { border-color: #00ff9966; color: #00ff9988; }
-  #layout-btn.active { border-color: #00ff9944; color: #00ff9966; }
+  #layout-btn:hover { border-color: #00ff9966; color: #00ff99; }
+  #layout-btn.active { border-color: #00ff9944; color: #00ff99; }
 </style>
 <link rel="stylesheet" href="vis-network.min.css">
 <script src="vis-network.min.js"></script>
@@ -113,42 +114,42 @@
 <div id="graph"></div>
 
 <div id="topo-panel">
-  <div class="tp-row"><span class="tp-label">SUBNET</span><span class="tp-value" id="tp-subnet">—</span></div>
-  <div class="tp-row"><span class="tp-label">GATEWAY</span><span class="tp-value" id="tp-gateway">—</span></div>
-  <div class="tp-row"><span class="tp-label">DEVICES</span><span class="tp-value" id="tp-devices">0</span></div>
-  <div class="tp-row"><span class="tp-label">INTERMEDIATES</span><span class="tp-value" id="tp-intermediates">0</span></div>
+  <div class="tp-row"><span class="tp-label">ПОДСЕТЬ</span><span class="tp-value" id="tp-subnet">—</span></div>
+  <div class="tp-row"><span class="tp-label">ШЛЮЗ</span><span class="tp-value" id="tp-gateway">—</span></div>
+  <div class="tp-row"><span class="tp-label">УСТРОЙСТВА</span><span class="tp-value" id="tp-devices">0</span></div>
+  <div class="tp-row"><span class="tp-label">ПРОМЕЖУТОЧНЫЕ</span><span class="tp-value" id="tp-intermediates">0</span></div>
 </div>
 
 <div id="legend">
-  <div class="item"><div class="dot" style="border-color:#00ff99;background:#003322"></div> Gateway</div>
-  <div class="item"><div class="dot" style="border-color:#00ccff;background:#001a33"></div> Router</div>
-  <div class="item"><div class="dot" style="border-color:#ff9900;background:#332200"></div> Access Point</div>
-  <div class="item"><div class="dot" style="border-color:#00aaff;background:#001a2e"></div> Switch</div>
-  <div class="item"><div class="dot" style="border-color:#5555ff;background:#1a1a2e"></div> PC / Workstation</div>
-  <div class="item"><div class="dot" style="border-color:#aaaaaa;background:#1a1a1a"></div> Apple Device</div>
-  <div class="item"><div class="dot" style="border-color:#ff5599;background:#2e1a2e"></div> Mobile</div>
+  <div class="item"><div class="dot" style="border-color:#00ff99;background:#003322"></div> Шлюз</div>
+  <div class="item"><div class="dot" style="border-color:#00ccff;background:#001a33"></div> Маршрутизатор</div>
+  <div class="item"><div class="dot" style="border-color:#ff9900;background:#332200"></div> Точка доступа</div>
+  <div class="item"><div class="dot" style="border-color:#00aaff;background:#001a2e"></div> Коммутатор</div>
+  <div class="item"><div class="dot" style="border-color:#5555ff;background:#1a1a2e"></div> ПК / Рабочая станция</div>
+  <div class="item"><div class="dot" style="border-color:#aaaaaa;background:#1a1a1a"></div> Устройство Apple</div>
+  <div class="item"><div class="dot" style="border-color:#ff5599;background:#2e1a2e"></div> Мобильное устройство</div>
   <div class="item"><div class="dot" style="border-color:#cc0000;background:#2e0000"></div> Raspberry Pi</div>
-  <div class="item"><div class="dot" style="border-color:#9900ff;background:#1a0033"></div> Virtual Machine</div>
-  <div class="item"><div class="dot" style="border-color:#444444;background:#1a1a1a"></div> Unknown</div>
-  <div class="item"><div class="dot" style="border-color:#ffcc00;background:#332b00"></div> Embedded service (default creds risk)</div>
+  <div class="item"><div class="dot" style="border-color:#9900ff;background:#1a0033"></div> Виртуальная машина</div>
+  <div class="item"><div class="dot" style="border-color:#444444;background:#1a1a1a"></div> Неизвестно</div>
+  <div class="item"><div class="dot" style="border-color:#ffcc00;background:#332b00"></div> Встроенный сервис (риск стандартных учётных данных)</div>
   <div class="sep"></div>
   <div class="item">
     <div class="edge-sample" style="background:repeating-linear-gradient(90deg,#333 0,#333 4px,transparent 4px,transparent 8px)"></div>
-    Uplink
+    Аплинк
   </div>
   <div class="item">
     <div class="edge-sample" style="background:#00ccff44;height:2px"></div>
-    Backbone
+    Магистраль
   </div>
   <div class="item">
     <div class="edge-sample" style="background:#222;height:1px"></div>
-    Client link
+    Клиентская связь
   </div>
 </div>
 
-<div id="counter">// 0 devices</div>
+<div id="counter">// 0 устройств</div>
 
-<div id="layout-btn" class="active" onclick="toggleLayout()">[ HIERARCHICAL ]</div>
+<div id="layout-btn" class="active" onclick="toggleLayout()">ИЕРАРХИЯ</div>
 
 <script>
 let network = null;
@@ -159,7 +160,7 @@ let subnetsForDraw = [];
 function toggleLayout() {
   hierarchicalMode = !hierarchicalMode;
   const btn = document.getElementById("layout-btn");
-  btn.textContent = hierarchicalMode ? "[ HIERARCHICAL ]" : "[ FORCE ATLAS ]";
+  btn.textContent = hierarchicalMode ? "ИЕРАРХИЯ" : "СИЛОВАЯ СХЕМА";
   btn.className = hierarchicalMode ? "active" : "";
   if (currentTopology) _renderTopology(currentTopology);
 }
@@ -180,6 +181,32 @@ function getRoleStyle(role) {
   return styles[role] || styles.unknown;
 }
 
+function getRoleImage(role, style, flagged) {
+  // SVG-иконка устройства для узла карты сети.
+  const stroke = flagged ? "#ffcc00" : style.border;
+  const bg = style.bg;
+  const soft = stroke + "33";
+  const icons = {
+    gateway: '<circle cx="32" cy="32" r="11" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4"/><path d="M32 17v6M32 41v6M17 32h6M41 32h6M21.5 21.5l4.2 4.2M38.3 38.3l4.2 4.2M42.5 21.5l-4.2 4.2M25.7 38.3l-4.2 4.2" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round"/><circle cx="32" cy="32" r="3" fill="' + stroke + '"/>',
+    router: '<rect x="13" y="26" width="38" height="14" rx="7" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4"/><path d="M20 26l-4-7M32 26v-9M44 26l4-7" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round"/><circle cx="22" cy="33" r="1.8" fill="' + stroke + '"/><circle cx="28" cy="33" r="1.8" fill="' + stroke + '"/><path d="M35 33h8" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round"/>',
+    ap: '<path d="M32 39v6" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round"/><circle cx="32" cy="35" r="2.5" fill="' + stroke + '"/><path d="M25.5 29.5a9 9 0 0 1 13 0M20.5 24.5a16 16 0 0 1 23 0M15.5 19.5a23 23 0 0 1 33 0" fill="none" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round"/>',
+    switch: '<rect x="12" y="23" width="40" height="18" rx="6" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4"/><path d="M20 30h5l-2-2m2 2-2 2M31 34h5l-2-2m2 2-2 2M42 30h2" stroke="' + stroke + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+    pc: '<rect x="14" y="15" width="36" height="24" rx="5" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4"/><path d="M24 47h16M28 39l-1 8M36 39l1 8" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 33h24" stroke="' + stroke + '" stroke-width="1.5" opacity="0.35"/>',
+    apple: '<path d="M36.5 17c-1.8 0-3.6.9-4.7 2.5-1.1-1.6-2.9-2.5-4.7-2.5-3.7 0-6.8 3.1-6.8 7.4 0 5.7 4.6 12.3 8.4 12.3 1 0 2-.4 3.1-.4s2.1.4 3.1.4c3.8 0 8.4-6.6 8.4-12.3 0-4.3-3.1-7.4-6.8-7.4z" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4" stroke-linejoin="round"/><path d="M34.5 12.5c.8 1.8.6 3.9-.6 5.5-1.8-.6-3.1-2.2-3.3-4.1 1.4-1.2 2.8-1.6 3.9-1.4z" fill="' + stroke + '"/>',
+    mobile: '<rect x="22" y="13" width="20" height="38" rx="6" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4"/><path d="M29 18h6" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round"/><circle cx="32" cy="45" r="1.7" fill="' + stroke + '"/>',
+    raspberry: '<rect x="18" y="18" width="28" height="28" rx="7" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4"/><circle cx="26" cy="26" r="2.2" fill="' + stroke + '"/><circle cx="38" cy="26" r="2.2" fill="' + stroke + '"/><circle cx="26" cy="38" r="2.2" fill="' + stroke + '"/><circle cx="38" cy="38" r="2.2" fill="' + stroke + '"/><path d="M32 29v6m-3-3h6" stroke="' + stroke + '" stroke-width="2.2" stroke-linecap="round"/>',
+    vm: '<rect x="13" y="16" width="38" height="26" rx="6" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4"/><path d="M22 48h20M26 42l-1 6M38 42l1 6" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round"/><rect x="19" y="22" width="10" height="8" rx="2" fill="none" stroke="' + stroke + '" stroke-width="2"/><rect x="35" y="22" width="10" height="8" rx="2" fill="none" stroke="' + stroke + '" stroke-width="2"/>',
+    unknown: '<circle cx="32" cy="32" r="14" fill="' + soft + '" stroke="' + stroke + '" stroke-width="2.4"/><path d="M27.5 27.5a5 5 0 1 1 4.5 7.2v2.1" fill="none" stroke="' + stroke + '" stroke-width="2.4" stroke-linecap="round"/><circle cx="32" cy="41.5" r="1.6" fill="' + stroke + '"/>',
+  };
+  const icon = icons[role] || icons.unknown;
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
+    + '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.06"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>'
+    + '<rect x="4" y="4" width="56" height="56" rx="16" fill="' + bg + '" stroke="' + stroke + '" stroke-width="2.6"/>'
+    + '<rect x="4" y="4" width="56" height="56" rx="16" fill="url(#g)"/>'
+    + icon + '</svg>';
+  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+}
+
 function getRole(device) {
   if (device.role && device.role !== "unknown") return device.role;
   const ip = device.ip || "";
@@ -192,7 +219,7 @@ function getRole(device) {
   if (vendor.includes("cisco") || vendor.includes("mikrotik") || vendor.includes("ubiquiti") || vendor.includes("juniper") || vendor.includes("fortinet")) return "router";
   if (vendor.includes("tp-link") || vendor.includes("netgear") || vendor.includes("dlink") || vendor.includes("linksys") || vendor.includes("tenda") || vendor.includes("zyxel") || vendor.includes("aruba")) return "ap";
   if (vendor.includes("apple") || hostname.includes("iphone") || hostname.includes("ipad") || hostname.includes("macbook")) return "apple";
-  if (vendor.includes("samsung") || vendor.includes("xiaomi") || vendor.includes("oneplus") || hostname.includes("android")) return "mobile";
+  if (vendor.includes("samsung") || vendor.includes("xiaomi") || vendor.includes("oneplus") || vendor.includes("huawei") || vendor.includes("honor") || vendor.includes("google") || hostname.includes("android") || hostname.includes("tablet") || hostname.includes("galaxy") || hostname.includes("pixel") || hostname.includes("phone")) return "mobile";
   if (vendor.includes("raspberry")) return "raspberry";
   if (vendor.includes("vmware") || vendor.includes("virtualbox") || vendor.includes("proxmox")) return "vm";
   if (vendor.includes("intel") || vendor.includes("dell") || vendor.includes("hp") || vendor.includes("lenovo") || vendor.includes("asus") || hostname.includes("desktop") || hostname.includes("pc") || hostname.includes("linux") || hostname.includes("windows")) return "pc";
@@ -200,33 +227,40 @@ function getRole(device) {
 }
 
 function makeTooltip(role, device, style) {
+  const esc = (v) => String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
   const el = document.createElement("div");
-  const ports = (device.open_ports && device.open_ports.length) ? device.open_ports.join(", ") : "—";
-  const ttl = device.ttl != null ? device.ttl : "—";
-  const osHint = device.os_hint && device.os_hint !== "unknown" ? device.os_hint : "—";
-  const snmpRow = device.snmp_desc
+  const ports = (device.open_ports && device.open_ports.length) ? device.open_ports.map(esc).join(", ") : "—";
+  const ttl = device.ttl != null ? esc(device.ttl) : "—";
+  const osHint = device.os_hint && device.os_hint !== "unknown" ? esc(device.os_hint) : "—";
+  const snmp = device.snmp_desc ? String(device.snmp_desc) : "";
+  const snmpRow = snmp
     ? `<div style="color:#888;margin-bottom:2px;margin-top:2px">SNMP</div>
-       <div style="color:#aaaaaa;margin-bottom:0;font-size:10px;word-break:break-all">${device.snmp_desc.substring(0, 80)}${device.snmp_desc.length > 80 ? "…" : ""}</div>`
+       <div style="color:#aaaaaa;margin-bottom:0;font-size:10px;word-break:break-all">${esc(snmp.substring(0, 80))}${snmp.length > 80 ? "…" : ""}</div>`
     : "";
   const embeddedRow = device.embedded_device
-    ? `<div style="color:#ffcc00;margin-bottom:2px;margin-top:2px">EMBEDDED SERVICE</div>
-       <div style="color:#ffcc00;margin-bottom:0;font-size:10px">${device.embedded_device} — ships with known default credentials, verify manually</div>`
+    ? `<div style="color:#ffcc00;margin-bottom:2px;margin-top:2px">ВСТРОЕННЫЙ СЕРВИС</div>
+       <div style="color:#ffcc00;margin-bottom:0;font-size:10px">${esc(device.embedded_device)} — возможны стандартные учётные данные, проверьте вручную</div>`
     : "";
   el.innerHTML = `
-    <div style="color:${style.border};font-weight:bold;margin-bottom:6px;letter-spacing:1px">${style.label}</div>
+    <div style="color:${style.border};font-weight:bold;margin-bottom:6px;letter-spacing:1px">${esc(style.label)}</div>
     <div style="color:#888;margin-bottom:2px">IP</div>
-    <div style="color:#e0e0e0;margin-bottom:6px">${device.ip}</div>
+    <div style="color:#e0e0e0;margin-bottom:6px">${esc(device.ip)}</div>
     <div style="color:#888;margin-bottom:2px">MAC</div>
-    <div style="color:#e0e0e0;margin-bottom:6px">${device.mac}</div>
-    <div style="color:#888;margin-bottom:2px">VENDOR</div>
-    <div style="color:#e0e0e0;margin-bottom:6px">${device.vendor || "Unknown"}</div>
-    <div style="color:#888;margin-bottom:2px">HOSTNAME</div>
-    <div style="color:#e0e0e0;margin-bottom:6px">${device.hostname}</div>
+    <div style="color:#e0e0e0;margin-bottom:6px">${esc(device.mac)}</div>
+    <div style="color:#888;margin-bottom:2px">ПРОИЗВОДИТЕЛЬ</div>
+    <div style="color:#e0e0e0;margin-bottom:6px">${esc(device.vendor || "Неизвестно")}</div>
+    <div style="color:#888;margin-bottom:2px">ИМЯ ХОСТА</div>
+    <div style="color:#e0e0e0;margin-bottom:6px">${esc(device.hostname)}</div>
     <div style="display:flex;gap:16px;margin-bottom:6px">
       <div><div style="color:#888;margin-bottom:2px">TTL</div><div style="color:#e0e0e0">${ttl}</div></div>
-      <div><div style="color:#888;margin-bottom:2px">OS HINT</div><div style="color:#e0e0e0">${osHint}</div></div>
+      <div><div style="color:#888;margin-bottom:2px">ПОДСКАЗКА ОС</div><div style="color:#e0e0e0">${osHint}</div></div>
     </div>
-    <div style="color:#888;margin-bottom:2px">OPEN PORTS</div>
+    <div style="color:#888;margin-bottom:2px">ОТКРЫТЫЕ ПОРТЫ</div>
     <div style="color:#e0e0e0;margin-bottom:${(snmpRow || embeddedRow) ? "6px" : "0"}">${ports}</div>
     ${embeddedRow}
     ${snmpRow}
@@ -236,7 +270,7 @@ function makeTooltip(role, device, style) {
 
 function makeInternetTooltip() {
   const el = document.createElement("div");
-  el.innerHTML = `<div  style="color:#555;font-weight:bold;letter-spacing:1px">INTERNET</div><div style="color:#333;font-size:10px;margin-top:4px">External network uplink</div>`;
+  el.innerHTML = `<div  style="color:#555;font-weight:bold;letter-spacing:1px">ИНТЕРНЕТ</div><div style="color:#333;font-size:10px;margin-top:4px">Внешнее сетевое подключение</div>`;
   return el;
 }
 
@@ -418,19 +452,20 @@ function _renderTopology(topology) {
   const nodes = new vis.DataSet();
   const edgesDS = new vis.DataSet();
 
+  const internetSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
+    + '<rect x="4" y="4" width="56" height="56" rx="14" fill="#0d0d0d" stroke="#333333" stroke-width="3"/>'
+    + '<circle cx="32" cy="32" r="14" fill="none" stroke="#555555" stroke-width="2.5"/>'
+    + '<ellipse cx="32" cy="32" rx="6" ry="14" fill="none" stroke="#555555" stroke-width="2"/>'
+    + '<path d="M18 32h28M20 24h24M20 40h24" stroke="#555555" stroke-width="2" stroke-linecap="round"/>'
+    + '</svg>';
   nodes.add({
     id: "internet",
-    label: "INTERNET",
+    label: "ИНТЕРНЕТ",
     level: 0,
-    shape: "dot",
-    size: 18,
-    color: {
-      background: "#0d0d0d",
-      border: "#222222",
-      highlight: { background: "#111111", border: "#333333" },
-      hover: { background: "#111111", border: "#333333" },
-    },
-    font: { color: "#333333", size: 10, face: "monospace" },
+    shape: "image",
+    image: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(internetSvg),
+    size: 24,
+    font: { color: "#666666", size: 10, face: "monospace" },
     title: makeInternetTooltip(),
   });
 
@@ -449,13 +484,9 @@ function _renderTopology(topology) {
       label: label,
       title: makeTooltip(role, device, style),
       level: level,
-      color: {
-        background: style.bg,
-        border: borderColor,
-        highlight: { background: style.bg, border: "#00ff99" },
-        hover: { background: style.bg, border: borderColor },
-      },
-      size: style.size,
+      shape: "image",
+      image: getRoleImage(role, style, flagged),
+      size: style.size + 8,
       font: {
         color: flagged ? "#ffcc00" : (role === "gateway" ? "#00ff99" : (isHighLevel ? "#aaaaaa" : "#666666")),
         size: 10,
@@ -506,7 +537,7 @@ function _renderTopology(topology) {
     const node = nodes.get(nodeId);
     if (!node) return;
     const ipLine = node.label ? node.label.split("\n")[0] : "";
-    const name = prompt("Custom name for " + ipLine + ":", node._customName || "");
+    const name = prompt("Своё имя для " + ipLine + ":", node._customName || "");
     if (name === null) return;
     node._customName = name;
     nodes.update({ id: nodeId, label: name ? (ipLine + "\n " + name) : ipLine });
@@ -521,7 +552,7 @@ function _renderTopology(topology) {
 function updateGraph(topologyJson) {
   let topology;
   try {
-    topology = JSON.parse(topologyJson);
+    topology = typeof topologyJson === "string" ? JSON.parse(topologyJson) : topologyJson;
   } catch(e) {
     return;
   }

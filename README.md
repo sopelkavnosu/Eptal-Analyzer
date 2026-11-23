@@ -1,194 +1,146 @@
-<div align="center">
+# Eptal-Analyzer
 
-# L0p4Map
-![Traffic Analyzer](ui/assets/logosite.png)
+**Eptal-Analyzer** — форк проекта [L0p4Map](https://github.com/L0p4/L0p4Map), развиваемый как отдельная Windows-программа для сетевого анализа, диагностики и инвентаризации.
 
-**Nmap was blind. L0p4Map sees.**
-
-![Python](https://img.shields.io/badge/Python-3.11+-00ff99?style=flat-square&logo=python&logoColor=black)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-00ff99?style=flat-square)
-![License](https://img.shields.io/badge/License-GPL--v3-00ff99?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Active%20Development-orange?style=flat-square)
-
-Professional network monitoring & visualization tool built for security researchers.
-
-https://github.com/user-attachments/assets/745eb888-0636-47e8-9293-38a706a8e897
-
-</div>
+Проект сохраняет базовую идею L0p4Map, но получил новое имя, переработанный интерфейс, новые функции, исправления и улучшения надёжности.  
+Атрибуция оригинальному автору и лицензия **GNU GPL v3.0 or later** сохранены (см. `LICENSE`).
 
 ---
 
-## What is L0p4Map?
+## RU — Что сделано и что обновлено
 
-L0p4Map is a professional grade network monitoring tool that combines the power of nmap with a clean, modern dark UI. Designed for security researchers and network administrators who need fast, detailed visibility into their infrastructure.
+### Основные обновления
 
-No bloat. No BS. Just raw network intelligence.
+#### 1. Ребрендинг и интерфейс
+- Новое название: **Eptal-Analyzer**.
+- Тёмно-серый современный UI, белый текст, скруглённые элементы, аккуратные кнопки.
+- Версия вынесена в `core/version.py` (`v1.0.31`).
+- В заголовке окна отображается версия, в верхней панели — название программы.
+- На загрузочном экране указана база L0p4Map и текущая версия Eptal-Analyzer.
 
-Now available on Linux, Windows and macOS.
+#### 2. Новые функции
+- **Карта сети** — визуализация устройств и связей.
+- **Диагностика сети** — адаптер, Wi-Fi, DHCP/DNS, шлюз, интернет, MTU.
+- **Ping / Traceroute / сканирование портов по любому IP** — можно ввести любой IP-адрес или хост и выполнить проверку доступности (ping), трассировку маршрута (traceroute) и сканирование портов/сервисов через Nmap.
+- **Инвентарь и журнал** — данные об устройствах, история появления, события/изменения.
+- **История сканирований и сравнение** — снимки сканирований и сравнение результатов.
+- **Критичные узлы** — контроль важных хостов.
+- **Очередь задач** — фоновые/очередные действия без блокировки UI.
+- **Nmap-интеграция** — запуск Nmap из интерфейса с выбором флагов, скриптов NSE и пользовательских параметров.
+- **Attack Surface / аудит** — анализ портов, рисков, признаков сервисов, отчёты.
+- **Анализ трафика** — захват пакетов Scapy/Npcap, фильтрация, старт/стоп/очистка, CSV-экспорт.
+- **Расширенный анализ трафика** — BPF-фильтр, PCAP-запись, top proto/port/top source, счётчик flows, предупреждение об аномалии доминирующего источника, колонка Info с DNS/HTTP признаками.
+- **Углублённый статус устройства** — HTTP/TLS/SMB/SNMP признаки, filtered/no-response, camera/embedded hints, метод обнаружения.
+- **Очистка данных** — кнопки очистки истории, инвентаря/журнала, мониторинга.
+- **Экспорт** — CSV/TXT для мониторинга, аудита и трафика.
 
----
+#### 3. Улучшения сканирования
+- **TCP-fallback** при недостаточности ARP/ICMP:
+  - `scan_range` — fallback обнаружения живых хостов;
+  - `scan_network` — осторожный fallback для небольших подсетей (`<= /24`, порты `80/443/445/22`, timeout `0.35s`).
+- Хосты, найденные по TCP, помечаются `discovery="tcp"`.
+- Статусы портов: `open / closed / filtered-no-response`.
+- Для TCP-хоста без MAC в UI показывается `неизвестен (TCP)`.
+- Кэширование локальных сетей в `scan_range` / `is_target_fully_local`.
 
-## Features
+#### 4. Исправления и надёжность
+- Исправлены регрессии после рефакторинга (`is_valid_target` вынесен в `ui/utils.py`).
+- Точечное логирование `logger.debug(..., exc_info=True)` в ключевых `except Exception`.
+- Для Windows subprocess добавлен `CREATE_NO_WINDOW`, чтобы уменьшить мелькание консольных окон.
+- Исправлен экспорт CSV трафика: безопасные `src_label/dst_label`, поле `info`, обработка ошибок записи.
+- Улучшена валидация целей (IP/CIDR/диапазон/hostname) в ключевых полях и профилях.
+- Эвристики HTTP/TLS/SMB/SNMP/FILTERED помечены как признаки, требующие подтверждения.
 
-- **Multi-Platform Support**: works on Linux (Debian/Arch), Windows and macOS with the same interface and the same feature set
-- **Continuous Monitoring**: lightweight daemon/agent that passively watches ARP and mDNS traffic without needing to rescan the whole network
-- **Alerting**: real time notification when a new, unauthorized device appears on the network
-- **Continuous SNMP Polling**: periodic SNMP queries to keep device status updated in real time, without waiting for the next scan cycle
-- **ARP Network Scan**: fast host discovery with local IEEE OUI database lookup
-- **Range Cartography**: scan any IP / CIDR / range. Routed ranges are mapped via traceroute (hosts grouped under their last hop router)
-- **Hostname Resolution**: multi method detection via reverse DNS, NetBIOS (Windows) and mDNS/Avahi (Linux, Mac, IoT)
-- **Device Fingerprinting**: TTL based OS hint (Linux/macOS, Windows, network device), TCP port probing on topology relevant ports, raw SNMP `sysDescr` query (no external libs)
-- **Embedded Service Fingerprinting**: passively detects iLO / InfoPrint / XPort / SATO / Zebra via banner grabbing and flags them on the graph as devices known to ship with default credentials, for manual verification
-- **Role Detection**: automatic classification of each host: gateway, router, access point, switch, PC, Apple, mobile, Raspberry Pi, virtual machine, unknown, combining vendor, hostname, TTL, open ports and SNMP response
-- **Real Network Topology Graph**: hierarchical vis.js graph that reflects the actual network structure: gateway at the top, intermediate devices (routers/APs/switches) on a second tier, clients grouped below their parent. Toggleable between Hierarchical and Force Atlas layouts
-- **Subnet Bounding Boxes**: each detected subnet is drawn as a dashed overlay directly on the graph canvas, labeled with its CIDR
-- **Typed Edges**: three visually distinct link types: uplink (gateway to internet), backbone (intermediate device to gateway), client link (device to parent)
-- **Topology Panel**: live overlay showing subnet, gateway IP, total devices and intermediate device count
-- **Full nmap Integration**: SYN scan, UDP, OS detection, service version, NSE scripts
-- **Banner Grabbing**: HTTP, SMB, FTP, SSH, SSL enumeration
-- **Vulnerability Detection**: CVE lookup via vulners, vuln and malware scripts
-- **Attack Surface**: exposed services, open ports and CVE overview per host with CVSS scoring and direct NVD link; results exportable as CSV
-- **Traffic Analyzer**: real time packet capture with per device stats, protocol coloring, filter bar, double click to port scan; exportable as CSV
-- **Traceroute**: ICMP based with real time output
-- **Interface Selection**: choose which network interface to scan on
-- **Live Monitoring**: auto refresh the network graph at configurable intervals (30s / 60s / 120s)
-- **Scan Export**: save full nmap output to `.txt`
-- **Graph Export**: export the network topology as CSV or PNG
-- **Custom Node Labels**: assign custom names to any device directly on the graph (double click)
-- **Dark Professional UI**: built with PyQt6
+#### 5. Технические изменения
+- `core/version.py` — версия.
+- `ui/workers.py` — QThread-воркеры.
+- `ui/widgets.py` — общие виджеты.
+- `ui/utils.py` — общая валидация.
+- `scripts/smoke_check.py` — быстрая smoke-проверка.
+- Удалены мёртвые импорты/неиспользуемые ассеты после проверки ссылок.
+- Удалена неиспользуемая зависимость `requests` из `requirements.txt` и `pyproject.toml`.
 
----
+### Проверки
+- `python -m py_compile main.py ui/app.py ui/workers.py ui/widgets.py ui/utils.py core/scanner.py core/version.py scripts/smoke_check.py` — успешно.
+- `scripts/smoke_check.py` — `smoke: ok`.
 
-## Screenshots
-
-### Home: Network Scanner
-![Home](img/lopamap1.png)
-
-### Port Scan: Full nmap Integration
-![Port Scan](img/lopamap2.png)
-
-### Network Topology: Hierarchical topology graph
-![Network Topology Graph | Hierarchical](img/retepng1.png)
-
-### Network Topology: Force Atlas layout
-![Network Topology Graph | Force Atlas](img/retepng2.png)
-
-### Attack Surface: Exposed services, open ports and vulnerability overview
-![Attack surface section](img/Ats.png)
-
-### Traffic Analyzer: Real-time network traffic analysis
-![Traffic Analyzer](img/traffic2.png)
-
----
-
-## Requirements
-
-### Linux (Debian or Arch)
-- Python 3.11+
-- nmap installed (`sudo pacman -S nmap` or `sudo apt install nmap`)
-- Npcap/libpcap for packet capture (normally already present on Debian/Arch)
-- Root privileges (required for ARP scanning and packet capture)
-
-### Windows 10/11
-- Python 3.11+
-- Nmap for Windows (official installer from nmap.org, includes Npcap)
-- Npcap installed in "WinPcap API-compatible" mode (required for packet capture)
-- Run as Administrator (required for ARP scanning and packet capture)
-
-### macOS (Intel and Apple Silicon)
-- Python 3.11+
-- nmap installed (`brew install nmap`)
-- Root privileges (required for ARP scanning and packet capture)
+### Требует ручной проверки
+- Полный GUI runtime.
+- Реальная сеть, Npcap/Scapy, Nmap, права администратора.
+- BPF/PCAP/DNS/HTTP признаки и экспорт трафика.
+- TCP-fallback в реальных подсетях с ограниченным ARP/ICMP.
+- Работа готового exe на чистой машине.
 
 ---
 
-## Installation
+## EN — What Was Done and Updated
 
-### Linux
+### Major Updates
 
-**Arch Linux** users can install directly from the AUR:
+#### 1. Rebranding and UI
+- New name: **Eptal-Analyzer**.
+- Dark gray modern UI, white text, rounded elements, clean buttons.
+- Version moved to `core/version.py` (`v1.0.31`).
+- Window title shows the version; top panel shows the app name.
+- Splash screen credits L0p4Map and shows the current Eptal-Analyzer version.
 
-```bash
-yay -S l0p4map
-```
+#### 2. New Features
+- **Network map** — device and connection visualization.
+- **Network diagnostics** — adapter, Wi-Fi, DHCP/DNS, gateway, internet, MTU.
+- **Ping / Traceroute / Port scan for any IP** — you can enter any IP address or host and run availability check (ping), route tracing (traceroute), and port/service scanning via Nmap.
+- **Inventory and journal** — device records, appearance history, events/changes.
+- **Scan history and comparison** — scan snapshots and result comparison.
+- **Critical hosts** — tracking for important hosts.
+- **Task queue** — background/queued actions without blocking the UI.
+- **Nmap integration** — run Nmap from the UI with flags, NSE scripts, and custom arguments.
+- **Attack Surface / audit** — ports, risks, service indicators, reports.
+- **Traffic analysis** — Scapy/Npcap capture, filtering, start/stop/clear, CSV export.
+- **Extended traffic analysis** — BPF filter, PCAP writing, top proto/port/top source, flow counter, dominant-source anomaly warning, Info column with DNS/HTTP indicators.
+- **Deep device status** — HTTP/TLS/SMB/SNMP indicators, filtered/no-response, camera/embedded hints, discovery method.
+- **Data clearing** — clear history, inventory/journal, monitoring data.
+- **Exports** — CSV/TXT for monitoring, audit, and traffic.
 
-Alternatively, on any Linux distribution:
+#### 3. Scanning Improvements
+- **TCP fallback** when ARP/ICMP is insufficient:
+  - `scan_range` — live host fallback detection;
+  - `scan_network` — cautious fallback for small subnets (`<= /24`, ports `80/443/445/22`, `0.35s` timeout).
+- TCP-discovered hosts are marked as `discovery="tcp"`.
+- Port states: `open / closed / filtered-no-response`.
+- TCP hosts without MAC are shown as `unknown (TCP)` in UI.
+- Local network caching in `scan_range` / `is_target_fully_local`.
 
-```bash
-git clone https://github.com/HaxL0p4/L0p4Map.git
-cd L0p4Map
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-sudo chmod +x L0p4Map.sh
-```
+#### 4. Fixes and Reliability
+- Fixed refactoring regressions (`is_valid_target` moved to `ui/utils.py`).
+- Added targeted `logger.debug(..., exc_info=True)` in key `except Exception` blocks.
+- Added `CREATE_NO_WINDOW` for Windows subprocesses to reduce console flashing.
+- Fixed traffic CSV export: safe `src_label/dst_label`, added `info`, write-error handling.
+- Improved target validation (IP/CIDR/range/hostname) in key inputs and profiles.
+- HTTP/TLS/SMB/SNMP/FILTERED heuristics are marked as indicators requiring confirmation.
 
-### macOS
+#### 5. Technical Changes
+- `core/version.py` — version.
+- `ui/workers.py` — QThread workers.
+- `ui/widgets.py` — shared widgets.
+- `ui/utils.py` — shared validation.
+- `scripts/smoke_check.py` — quick smoke check.
+- Removed dead imports/unused assets after reference checks.
+- Removed unused `requests` dependency from `requirements.txt` and `pyproject.toml`.
 
-```bash
-git clone https://github.com/HaxL0p4/L0p4Map.git
-cd L0p4Map
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-chmod +x L0p4Map.sh
-```
+### Checks Performed
+- `python -m py_compile main.py ui/app.py ui/workers.py ui/widgets.py ui/utils.py core/scanner.py core/version.py scripts/smoke_check.py` — passed.
+- `scripts/smoke_check.py` — `smoke: ok`.
 
-### Windows
-
-```powershell
-git clone https://github.com/HaxL0p4/L0p4Map.git
-cd L0p4Map
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-Make sure nmap and Npcap are installed and available in the system PATH before launching the tool.
-
----
-
-## Usage
-
-### Linux and macOS
-
-Launch the tool with root privileges:
-
-```bash
-sudo ./L0p4Map.sh
-```
-
-### Windows
-
-Open a terminal (PowerShell or CMD) as Administrator, then:
-
-```powershell
-venv\Scripts\activate
-python L0p4Map.py
-```
-
-### Workflow
-
-1. Select the network interface from the toolbar dropdown
-2. Press **[ SCAN ]** to discover all devices: each host is fingerprinted via TTL, port probing and SNMP
-3. Click a device to see details and run quick actions (ping, traceroute, port scan)
-4. Switch to **Graph** to explore the real network topology: hover nodes for full device info, double click to assign a custom label
-5. Toggle between **[ HIERARCHICAL ]** and **[ FORCE ATLAS ]** layout from the graph view
-6. Use **Attack Surface** to run a deep nmap + vulners scan on any host and review CVEs
-7. Use **Traffic Analyzer** to capture live packets, filter by device or protocol, and export to CSV
-8. Enable **[ LIVE ]** in the graph view to keep the topology updated automatically
-9. Enable **Continuous Monitoring** to keep the agent passively listening on ARP/mDNS and receive alerts on new devices, without having to restart a full scan
+### Manual Runtime Testing Still Needed
+- Full GUI runtime.
+- Real network, Npcap/Scapy, Nmap, Administrator privileges.
+- BPF/PCAP/DNS/HTTP indicators and traffic export.
+- TCP fallback on real networks with restricted ARP/ICMP.
+- Ready exe behavior on a clean machine.
 
 ---
 
-## Legal Disclaimer
+## Attribution / License
 
-This tool is designed for **authorized network auditing only**. Only use L0p4Map on networks you own or have explicit permission to test. Unauthorized scanning is illegal.
-
----
-
-## Author
-
-**HaxL0p4**: [GitHub](https://github.com/HaxL0p4)
-
----
+- Original project: **L0p4Map** by L0p4.
+- Fork/enhancements: **Eptal-Analyzer**.
+- License: **GNU GPL v3.0 or later**.

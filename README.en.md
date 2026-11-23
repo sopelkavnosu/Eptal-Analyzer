@@ -23,6 +23,14 @@ Install these components before using Eptal-Analyzer for full functionality:
 
 > It is recommended to install Nmap and Npcap from the official websites. After installing Nmap, make sure `nmap` is available in `PATH` (or restart your system/terminal).
 
+## Screenshots — Eptal-Analyzer
+
+<p><a href="img/screenshots/screenshot-1.png"><img src="img/screenshots/screenshot-1.png" width="100%" alt="Eptal-Analyzer — screenshot 1"></a></p>
+<p><a href="img/screenshots/screenshot-2.png"><img src="img/screenshots/screenshot-2.png" width="100%" alt="Eptal-Analyzer — screenshot 2"></a></p>
+<p><a href="img/screenshots/screenshot-3.png"><img src="img/screenshots/screenshot-3.png" width="100%" alt="Eptal-Analyzer — screenshot 3"></a></p>
+<p><a href="img/screenshots/screenshot-4.png"><img src="img/screenshots/screenshot-4.png" width="100%" alt="Eptal-Analyzer — screenshot 4"></a></p>
+<p><a href="img/screenshots/screenshot-5.png"><img src="img/screenshots/screenshot-5.png" width="100%" alt="Eptal-Analyzer — screenshot 5"></a></p>
+
 ## What Was Done and Updated
 
 ### Major Updates

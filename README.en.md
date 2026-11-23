@@ -38,7 +38,7 @@ Install these components before using Eptal-Analyzer for full functionality:
 #### 1. Rebranding and UI
 - New name: **Eptal-Analyzer**.
 - Dark gray modern UI, white text, rounded elements, clean buttons.
-- Version moved to `core/version.py` (`v1.0.31`).
+- Version moved to `core/version.py` (`v1.0.37`).
 - Window title shows the version; top panel shows the app name.
 - Splash screen credits L0p4Map and shows the current Eptal-Analyzer version.
 

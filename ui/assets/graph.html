@@ -114,36 +114,36 @@
 <div id="graph"></div>
 
 <div id="topo-panel">
-  <div class="tp-row"><span class="tp-label">ПОДСЕТЬ</span><span class="tp-value" id="tp-subnet">—</span></div>
-  <div class="tp-row"><span class="tp-label">ШЛЮЗ</span><span class="tp-value" id="tp-gateway">—</span></div>
-  <div class="tp-row"><span class="tp-label">УСТРОЙСТВА</span><span class="tp-value" id="tp-devices">0</span></div>
-  <div class="tp-row"><span class="tp-label">ПРОМЕЖУТОЧНЫЕ</span><span class="tp-value" id="tp-intermediates">0</span></div>
+  <div class="tp-row"><span class="tp-label" id="lbl-subnet">ПОДСЕТЬ</span><span class="tp-value" id="tp-subnet">—</span></div>
+  <div class="tp-row"><span class="tp-label" id="lbl-gateway">ШЛЮЗ</span><span class="tp-value" id="tp-gateway">—</span></div>
+  <div class="tp-row"><span class="tp-label" id="lbl-devices">УСТРОЙСТВА</span><span class="tp-value" id="tp-devices">0</span></div>
+  <div class="tp-row"><span class="tp-label" id="lbl-intermediates">ПРОМЕЖУТОЧНЫЕ</span><span class="tp-value" id="tp-intermediates">0</span></div>
 </div>
 
 <div id="legend">
-  <div class="item"><div class="dot" style="border-color:#00ff99;background:#003322"></div> Шлюз</div>
-  <div class="item"><div class="dot" style="border-color:#00ccff;background:#001a33"></div> Маршрутизатор</div>
-  <div class="item"><div class="dot" style="border-color:#ff9900;background:#332200"></div> Точка доступа</div>
-  <div class="item"><div class="dot" style="border-color:#00aaff;background:#001a2e"></div> Коммутатор</div>
-  <div class="item"><div class="dot" style="border-color:#5555ff;background:#1a1a2e"></div> ПК / Рабочая станция</div>
-  <div class="item"><div class="dot" style="border-color:#aaaaaa;background:#1a1a1a"></div> Устройство Apple</div>
-  <div class="item"><div class="dot" style="border-color:#ff5599;background:#2e1a2e"></div> Мобильное устройство</div>
-  <div class="item"><div class="dot" style="border-color:#cc0000;background:#2e0000"></div> Raspberry Pi</div>
-  <div class="item"><div class="dot" style="border-color:#9900ff;background:#1a0033"></div> Виртуальная машина</div>
-  <div class="item"><div class="dot" style="border-color:#444444;background:#1a1a1a"></div> Неизвестно</div>
-  <div class="item"><div class="dot" style="border-color:#ffcc00;background:#332b00"></div> Встроенный сервис (риск стандартных учётных данных)</div>
+  <div class="item"><div class="dot" style="border-color:#00ff99;background:#003322"></div><span id="leg_gateway">Шлюз</span></div>
+  <div class="item"><div class="dot" style="border-color:#00ccff;background:#001a33"></div><span id="leg_router">Маршрутизатор</span></div>
+  <div class="item"><div class="dot" style="border-color:#ff9900;background:#332200"></div><span id="leg_ap">Точка доступа</span></div>
+  <div class="item"><div class="dot" style="border-color:#00aaff;background:#001a2e"></div><span id="leg_switch">Коммутатор</span></div>
+  <div class="item"><div class="dot" style="border-color:#5555ff;background:#1a1a2e"></div><span id="leg_pc">ПК / Рабочая станция</span></div>
+  <div class="item"><div class="dot" style="border-color:#aaaaaa;background:#1a1a1a"></div><span id="leg_apple">Устройство Apple</span></div>
+  <div class="item"><div class="dot" style="border-color:#ff5599;background:#2e1a2e"></div><span id="leg_mobile">Мобильное устройство</span></div>
+  <div class="item"><div class="dot" style="border-color:#cc0000;background:#2e0000"></div><span id="leg_rpi">Raspberry Pi</span></div>
+  <div class="item"><div class="dot" style="border-color:#9900ff;background:#1a0033"></div><span id="leg_vm">Виртуальная машина</span></div>
+  <div class="item"><div class="dot" style="border-color:#444444;background:#1a1a1a"></div><span id="leg_unknown">Неизвестно</span></div>
+  <div class="item"><div class="dot" style="border-color:#ffcc00;background:#332b00"></div><span id="leg_embedded">Встроенный сервис (риск стандартных учётных данных)</span></div>
   <div class="sep"></div>
   <div class="item">
     <div class="edge-sample" style="background:repeating-linear-gradient(90deg,#333 0,#333 4px,transparent 4px,transparent 8px)"></div>
-    Аплинк
+    <span id="leg_uplink">Аплинк</span>
   </div>
   <div class="item">
     <div class="edge-sample" style="background:#00ccff44;height:2px"></div>
-    Магистраль
+    <span id="leg_backbone">Магистраль</span>
   </div>
   <div class="item">
     <div class="edge-sample" style="background:#222;height:1px"></div>
-    Клиентская связь
+    <span id="leg_client">Клиентская связь</span>
   </div>
 </div>
 
@@ -156,11 +156,45 @@ let network = null;
 let currentTopology = null;
 let hierarchicalMode = true;
 let subnetsForDraw = [];
+let graphLang = "ru";
+let lastDeviceCount = 0;
+
+const GRAPH_I18N = {
+  ru: {
+    subnet:"ПОДСЕТЬ", gateway:"ШЛЮЗ", devices:"УСТРОЙСТВА", intermediates:"ПРОМЕЖУТОЧНЫЕ",
+    leg_gateway:"Шлюз", leg_router:"Маршрутизатор", leg_ap:"Точка доступа", leg_switch:"Коммутатор",
+    leg_pc:"ПК / Рабочая станция", leg_apple:"Устройство Apple", leg_mobile:"Мобильное устройство",
+    leg_rpi:"Raspberry Pi", leg_vm:"Виртуальная машина", leg_unknown:"Неизвестно",
+    leg_embedded:"Встроенный сервис (риск стандартных учётных данных)",
+    leg_uplink:"Аплинк", leg_backbone:"Магистраль", leg_client:"Клиентская связь",
+    hierarchy:"ИЕРАРХИЯ", force:"СИЛОВАЯ СХЕМА", counter:"// {n} устройств", promptName:"Своё имя для {ip}:"
+  },
+  en: {
+    subnet:"SUBNET", gateway:"GATEWAY", devices:"DEVICES", intermediates:"INTERMEDIATES",
+    leg_gateway:"Gateway", leg_router:"Router", leg_ap:"Access point", leg_switch:"Switch",
+    leg_pc:"PC / Workstation", leg_apple:"Apple device", leg_mobile:"Mobile device",
+    leg_rpi:"Raspberry Pi", leg_vm:"Virtual machine", leg_unknown:"Unknown",
+    leg_embedded:"Embedded service (default credentials risk)",
+    leg_uplink:"Uplink", leg_backbone:"Backbone", leg_client:"Client link",
+    hierarchy:"HIERARCHY", force:"FORCE LAYOUT", counter:"// {n} devices", promptName:"Custom name for {ip}:"
+  }
+};
+
+function setGraphLang(lang) {
+  graphLang = (lang === "en") ? "en" : "ru";
+  const t = GRAPH_I18N[graphLang];
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set("lbl-subnet", t.subnet); set("lbl-gateway", t.gateway); set("lbl-devices", t.devices); set("lbl-intermediates", t.intermediates);
+  ["leg_gateway","leg_router","leg_ap","leg_switch","leg_pc","leg_apple","leg_mobile","leg_rpi","leg_vm","leg_unknown","leg_embedded","leg_uplink","leg_backbone","leg_client"].forEach(k => set(k, t[k]));
+  set("layout-btn", hierarchicalMode ? t.hierarchy : t.force);
+  set("counter", t.counter.replace("{n}", lastDeviceCount));
+}
 
 function toggleLayout() {
   hierarchicalMode = !hierarchicalMode;
   const btn = document.getElementById("layout-btn");
-  btn.textContent = hierarchicalMode ? "ИЕРАРХИЯ" : "СИЛОВАЯ СХЕМА";
+  const t = GRAPH_I18N[graphLang];
+  btn.textContent = hierarchicalMode ? t.hierarchy : t.force;
   btn.className = hierarchicalMode ? "active" : "";
   if (currentTopology) _renderTopology(currentTopology);
 }
@@ -519,8 +553,8 @@ function _renderTopology(topology) {
     });
   }
 
-  document.getElementById("counter").textContent =
-    "// " + devices.length + " device" + (devices.length !== 1 ? "s" : "");
+  lastDeviceCount = devices.length;
+  document.getElementById("counter").textContent = GRAPH_I18N[graphLang].counter.replace("{n}", devices.length);
   updateTopoPanel(subnet, gatewayIp, devices.length, intermediates.size);
 
   const container = document.getElementById("graph");
@@ -537,7 +571,7 @@ function _renderTopology(topology) {
     const node = nodes.get(nodeId);
     if (!node) return;
     const ipLine = node.label ? node.label.split("\n")[0] : "";
-    const name = prompt("Своё имя для " + ipLine + ":", node._customName || "");
+    const name = prompt(GRAPH_I18N[graphLang].promptName.replace("{ip}", ipLine), node._customName || "");
     if (name === null) return;
     node._customName = name;
     nodes.update({ id: nodeId, label: name ? (ipLine + "\n " + name) : ipLine });
@@ -571,6 +605,7 @@ function updateGraph(topologyJson) {
   currentTopology = topology;
   _renderTopology(topology);
 }
+setGraphLang(graphLang);
 </script>
 </body>
 </html>

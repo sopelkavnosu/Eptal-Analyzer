@@ -142,6 +142,7 @@ APP_THEME_QSS = """
 
 from ui.widgets import LogoIniziale, SpinnerWidget, load_colored_svg
 
+from ui.i18n import I18n
 from ui.utils import is_valid_target
 from ui.workers import (
     ActionWorker,
@@ -180,11 +181,13 @@ class MainWindow(QMainWindow):
         self._task_queue = deque()
         self._active_task_name = None
 
+        self.settings = QSettings("Eptal-Analyzer", "Eptal-Analyzer")
+        self.i18n = I18n(self.settings.value("language", "ru", type=str))
+
         self._apply_theme()
         self._build_ui()
-
-        self.settings = QSettings("Eptal-Analyzer", "Eptal-Analyzer")
         self._load_settings()
+        self.apply_language()
         QTimer.singleShot(500, self._check_dependencies)
         self.gateway_check_timer = QTimer(self)
         self.gateway_check_timer.setInterval(60000)
@@ -666,6 +669,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self._build_inventory_page())
         self.stack.addWidget(self._build_monitoring_page())
         self.stack.addWidget(self._build_audit_page())
+        self.stack.addWidget(self._build_settings_page())
         self.stack.addWidget(self._build_help_page())
         body_layout.addWidget(self.stack, stretch=1)
 
@@ -717,6 +721,7 @@ class MainWindow(QMainWindow):
         btn_inv, path_inv = make_btn("inventory.svg", "Журнал и инвентарь: история устройств, изменения, метки и уведомления")
         btn_mon, path_mon = make_btn("monitoring.svg", "Мониторинг доступности: шлюз, критичные узлы, история проверок")
         btn_audit, path_audit = make_btn("audit.svg", "Аудит безопасности: риски, порты, уязвимости, IoT/камеры")
+        btn_settings, path_settings = make_btn("settings.svg", "Настройки: параметры программы и язык интерфейса")
         btn_help, path_help = make_btn("help.svg", "Справка: полное руководство по всем функциям программы")
 
         self.nav_btns = [
@@ -729,6 +734,7 @@ class MainWindow(QMainWindow):
             (btn_inv, path_inv),
             (btn_mon, path_mon),
             (btn_audit, path_audit),
+            (btn_settings, path_settings),
             (btn_help, path_help),
         ]
 
@@ -751,7 +757,8 @@ class MainWindow(QMainWindow):
         btn_inv.clicked.connect(lambda: navigate(6))
         btn_mon.clicked.connect(lambda: navigate(7))
         btn_audit.clicked.connect(lambda: navigate(8))
-        btn_help.clicked.connect(lambda: navigate(9))
+        btn_settings.clicked.connect(lambda: navigate(9))
+        btn_help.clicked.connect(lambda: navigate(10))
 
         for btn, path in self.nav_btns:
             layout.addWidget(btn)
@@ -774,6 +781,112 @@ class MainWindow(QMainWindow):
                     border-radius: 10px;
                 }}
             """)
+
+    def _toggle_language(self):
+        # Переключение языка интерфейса RU/EN.
+        new_lang = "en" if self.i18n.lang == "ru" else "ru"
+        self.i18n.set_lang(new_lang)
+        self.settings.setValue("language", new_lang)
+        self.apply_language()
+
+    def apply_language(self):
+        # Применение текущего языка к основным элементам интерфейса.
+        t = self.i18n.t
+        if hasattr(self, "scan_button"):
+            self.scan_button.setText(t("btn_scan"))
+        if hasattr(self, "btn_open_log"):
+            self.btn_open_log.setText(t("btn_open_log"))
+        if hasattr(self, "btn_diagnostics"):
+            self.btn_diagnostics.setText(t("btn_diagnostics"))
+        if hasattr(self, "btn_events"):
+            self.btn_events.setText(t("btn_events"))
+        if hasattr(self, "btn_report"):
+            self.btn_report.setText(t("btn_report"))
+        if hasattr(self, "btn_history"):
+            self.btn_history.setText(t("btn_history"))
+        if hasattr(self, "btn_critical"):
+            self.btn_critical.setText(t("btn_critical"))
+        nav_keys = ["nav_home","nav_scan","nav_graph","nav_attack","nav_traffic","nav_diag","nav_inv","nav_mon","nav_audit","nav_settings","nav_help"]
+        if hasattr(self, "nav_btns"):
+            for i, (btn, _path) in enumerate(self.nav_btns):
+                if i < len(nav_keys):
+                    btn.setToolTip(t(nav_keys[i]))
+        for attr, key in [("settings_title_label","settings_title"),("settings_lang_label","settings_language"),("settings_lang_hint","settings_language_hint"),("home_title_label","home_title"),("scan_title_label","scan_title"),("graph_title_label","graph_title"),("attack_title_label","attack_title"),("traffic_title_label","traffic_title"),("diag_title_label","diag_title"),("inv_title_label","inv_title"),("mon_title_label","mon_title"),("audit_title_label","audit_title"),("help_title_label","help_title")]:
+            w = getattr(self, attr, None)
+            if w is not None:
+                w.setText(t(key))
+        if hasattr(self, "lang_combo"):
+            idx = self.lang_combo.findData(self.i18n.lang)
+            if idx >= 0 and self.lang_combo.currentIndex() != idx:
+                self.lang_combo.blockSignals(True)
+                self.lang_combo.setCurrentIndex(idx)
+                self.lang_combo.blockSignals(False)
+        # Общие кнопки
+        for attr, key in [("btn_start_capture","start"),("btn_stop_capture","stop"),("btn_clear_capture","clear"),("btn_ta_export","export"),("btn_ta_pcap","PCAP"),("btn_scan","btn_scan"),("scan_button","btn_scan")]:
+            w=getattr(self,attr,None)
+            if w is not None and hasattr(w,'setText'):
+                w.setText(t(key))
+        # Заголовки таблиц
+        def _set_headers(tbl, keys):
+            w = getattr(self, tbl, None)
+            if w is not None and hasattr(w, 'setHorizontalHeaderLabels'):
+                w.setHorizontalHeaderLabels([t(k) for k in keys])
+        _set_headers('inventory_table', ["col_ip","col_mac","col_name","col_first_seen","col_last_seen","col_tag","col_note"])
+        _set_headers('mon_table', ["col_time","col_type","col_target","col_status_details"])
+        _set_headers('table', ["col_ip","col_mac","col_vendor","col_hostname"])
+        _set_headers('as_history', [self.i18n.t("target").upper(), self.i18n.t("col_risk")])
+        if hasattr(self, 'as_history') and self.as_history is not None:
+            self.as_history.setHorizontalHeaderLabels([t("target").upper(), t("col_risk")])
+        _set_headers('as_ports_table', ["col_port","col_proto","col_service","col_version","col_risk"])
+        _set_headers('as_cve_table', ["col_cve","col_cvss","col_port","col_service","col_details"])
+        _set_headers('ta_device_list', ["col_ip", "packets"])
+        if hasattr(self, 'ta_table') and self.ta_table is not None:
+            self.ta_table.setHorizontalHeaderLabels(["#", t("col_time_short"), t("col_src"), t("col_dst"), t("col_proto"), t("col_port_short"), t("col_size")])
+        # Заголовки/подписи справки
+        if hasattr(self, "help_title_label"):
+            self.help_title_label.setText("Справка по функциям Eptal-Analyzer" if self.i18n.lang == "ru" else "Eptal-Analyzer Help Guide")
+        if hasattr(self, "help_subtitle_label"):
+            self.help_subtitle_label.setText(self.i18n.t("help_subtitle"))
+        if hasattr(self, "_populate_help_page"):
+            self._populate_help_page()
+        # Граф/инвентарь/мониторинг подписи
+        if hasattr(self, 'graph_view') and getattr(self, 'graph_ready', False):
+            try:
+                self.graph_view.page().runJavaScript(f"setGraphLang('{self.i18n.lang}')")
+            except Exception:
+                pass
+        for attr, key in [("graph_header_label","graph_header"),("btn_live","graph_live"),("btn_monitor","graph_monitor"),("inv_hint_label","inv_hint"),("btn_inv_tag","inv_tag"),("btn_inv_note","inv_note"),("btn_inv_clear","inv_clear"),("btn_inv_refresh","inv_refresh"),("btn_mon_clear","mon_clear"),("btn_mon_export","mon_export"),("btn_mon_refresh","mon_refresh"),("btn_audit_export","export"),("btn_audit_clear","clear"),("btn_audit_refresh","refresh"),("scan_target_label","scan_target_label"),("scan_saved_target_label","scan_saved_target"),("scan_profile_label","scan_profile_label")]:
+            w = getattr(self, attr, None)
+            if w is not None and hasattr(w, 'setText'):
+                w.setText(t(key))
+        # Профили сканирования
+        if hasattr(self, 'scan_profile') and self.scan_profile is not None:
+            cur = self.scan_profile.currentIndex()
+            items = [("scan_profile_manual",[]),("scan_profile_fast",["-F","-T4","--open"]),("scan_profile_normal",["-sV","-T3","--open"]),("scan_profile_deep",["-sV","-sC","-O","-T4","--open"])]
+            self.scan_profile.blockSignals(True)
+            self.scan_profile.clear()
+            for k, data in items:
+                self.scan_profile.addItem(t(k), userData=data)
+            if 0 <= cur < len(items):
+                self.scan_profile.setCurrentIndex(cur)
+            self.scan_profile.blockSignals(False)
+        if hasattr(self, 'target_profile_combo') and self.target_profile_combo is not None:
+            cur_data = self.target_profile_combo.currentData()
+            self.target_profile_combo.blockSignals(True)
+            self.target_profile_combo.clear()
+            self.target_profile_combo.addItem(t("scan_select_target"), userData=None)
+            for prof in getattr(self, '_target_profiles', []):
+                self.target_profile_combo.addItem(f"{prof['name']} — {prof['target']}", userData=prof)
+            idx = 0
+            if isinstance(cur_data, dict):
+                for i in range(self.target_profile_combo.count()):
+                    d = self.target_profile_combo.itemData(i)
+                    if isinstance(d, dict) and d.get('name') == cur_data.get('name'):
+                        idx = i
+                        break
+            self.target_profile_combo.setCurrentIndex(idx)
+            self.target_profile_combo.blockSignals(False)
+        self.statusBar().showMessage(t("lang_switched"))
 
     def _build_toolbar(self):
         toolbar = QWidget()
@@ -830,7 +943,7 @@ class MainWindow(QMainWindow):
         self.iface_selector.currentIndexChanged.connect(self._on_iface_changed)
 
         # Кнопка запуска сканирования сети.
-        self.scan_button = QPushButton("СКАНИРОВАТЬ")
+        self.scan_button = QPushButton(self.i18n.t("btn_scan"))
         self.scan_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.scan_button.clicked.connect(self._start_scan)
 
@@ -838,32 +951,32 @@ class MainWindow(QMainWindow):
         self.scan_progress = SpinnerWidget(size=22)
 
         # Кнопка открытия лога приложения.
-        self.btn_open_log = QPushButton("ЛОГ")
+        self.btn_open_log = QPushButton(self.i18n.t("btn_open_log"))
         self.btn_open_log.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_open_log.setToolTip("Открыть файл лога")
         self.btn_open_log.clicked.connect(self._open_log)
         # Кнопка диагностики зависимостей и окружения.
-        self.btn_diagnostics = QPushButton("ДИАГНОСТИКА")
+        self.btn_diagnostics = QPushButton(self.i18n.t("btn_diagnostics"))
         self.btn_diagnostics.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_diagnostics.setToolTip("Проверить Nmap, Npcap, права администратора")
         self.btn_diagnostics.clicked.connect(self._show_diagnostics)
         # Кнопка журнала событий доступности.
-        self.btn_events = QPushButton("СОБЫТИЯ")
+        self.btn_events = QPushButton(self.i18n.t("btn_events"))
         self.btn_events.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_events.setToolTip("Журнал изменений доступности устройств")
         self.btn_events.clicked.connect(self._show_events)
         # Кнопка экспорта HTML-отчёта.
-        self.btn_report = QPushButton("ОТЧЁТ")
+        self.btn_report = QPushButton(self.i18n.t("btn_report"))
         self.btn_report.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_report.setToolTip("Экспортировать HTML-отчёт")
         self.btn_report.clicked.connect(self._export_report)
         # Кнопка истории сканирований.
-        self.btn_history = QPushButton("ИСТОРИЯ")
+        self.btn_history = QPushButton(self.i18n.t("btn_history"))
         self.btn_history.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_history.setToolTip("История сканирований")
         self.btn_history.clicked.connect(self._show_history)
         # Кнопка управления критичными узлами.
-        self.btn_critical = QPushButton("КРИТ. УЗЛЫ")
+        self.btn_critical = QPushButton(self.i18n.t("btn_critical"))
         self.btn_critical.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_critical.setToolTip("Список критичных узлов для мониторинга доступности")
         self.btn_critical.clicked.connect(self._manage_critical_hosts)
@@ -984,13 +1097,13 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(12,12,12,12)
         layout.setSpacing(6)
 
-        target_label = QLabel("ЦЕЛЬ")
-        target_label.setStyleSheet("""
+        self.scan_target_label = QLabel(self.i18n.t("scan_target_label"))
+        self.scan_target_label.setStyleSheet("""
                 color: #ffffff;
                 font-size: 11px;
                 letter-spacing: 2px;
         """)
-        layout.addWidget(target_label)
+        layout.addWidget(self.scan_target_label)
 
         self.scan_target = QLineEdit()
         self.scan_target.setPlaceholderText("192.168.1.1")
@@ -1011,18 +1124,18 @@ class MainWindow(QMainWindow):
         layout.setSpacing(8)
 
         # Сохранённые цели сканирования.
-        tp_label = QLabel("СОХРАНЁННЫЕ ЦЕЛИ")
-        tp_label.setStyleSheet("color: #ffffff; font-size: 11px; letter-spacing: 2px;")
-        layout.addWidget(tp_label)
+        self.scan_saved_target_label = QLabel(self.i18n.t("scan_saved_target"))
+        self.scan_saved_target_label.setStyleSheet("color: #ffffff; font-size: 11px; letter-spacing: 2px;")
+        layout.addWidget(self.scan_saved_target_label)
         tp_row = QHBoxLayout()
         self.target_profile_combo = QComboBox()
         self.target_profile_combo.currentIndexChanged.connect(self._apply_target_profile)
         tp_row.addWidget(self.target_profile_combo, stretch=1)
-        btn_save_tp = QPushButton("СОХР")
+        btn_save_tp = QPushButton(self.i18n.t("save_short"))
         btn_save_tp.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         btn_save_tp.clicked.connect(self._save_target_profile)
         tp_row.addWidget(btn_save_tp)
-        btn_del_tp = QPushButton("УДАЛ")
+        btn_del_tp = QPushButton(self.i18n.t("delete_short"))
         btn_del_tp.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         btn_del_tp.clicked.connect(self._delete_target_profile)
         tp_row.addWidget(btn_del_tp)
@@ -1031,21 +1144,21 @@ class MainWindow(QMainWindow):
         layout.addSpacing(8)
 
         # Профиль сканирования: быстрый набор типовых флагов Nmap.
-        profile_label = QLabel("ПРОФИЛЬ")
-        profile_label.setStyleSheet("color: #ffffff; font-size: 11px; letter-spacing: 2px;")
-        layout.addWidget(profile_label)
+        self.scan_profile_label = QLabel(self.i18n.t("scan_profile_label"))
+        self.scan_profile_label.setStyleSheet("color: #ffffff; font-size: 11px; letter-spacing: 2px;")
+        layout.addWidget(self.scan_profile_label)
         self.scan_profile = QComboBox()
-        self.scan_profile.addItem("Вручную", userData=[])
-        self.scan_profile.addItem("Быстрый", userData=["-F", "-T4", "--open"])
-        self.scan_profile.addItem("Обычный", userData=["-sV", "-T3", "--open"])
-        self.scan_profile.addItem("Глубокий", userData=["-sV", "-sC", "-O", "-T4", "--open"])
+        self.scan_profile.addItem(self.i18n.t("scan_profile_manual"), userData=[])
+        self.scan_profile.addItem(self.i18n.t("scan_profile_fast"), userData=["-F", "-T4", "--open"])
+        self.scan_profile.addItem(self.i18n.t("scan_profile_normal"), userData=["-sV", "-T3", "--open"])
+        self.scan_profile.addItem(self.i18n.t("scan_profile_deep"), userData=["-sV", "-sC", "-O", "-T4", "--open"])
         self.scan_profile.currentIndexChanged.connect(self._apply_scan_profile)
         layout.addWidget(self.scan_profile)
         layout.addSpacing(8)
 
         self._scan_checks = {}
         sections = {
-        "ТИП СКАНИРОВАНИЯ": [
+        self.i18n.t("scan_section_type"): [
             ("-F", "Fast scan"),
             ("-sS", "SYN scan"),
             ("-sT", "TCP connect"),
@@ -1056,7 +1169,7 @@ class MainWindow(QMainWindow):
             ("-A", "Aggressive"),
             ("-Pn", "No ping"),
         ],
-        "ОБНАРУЖЕНИЕ": [
+        self.i18n.t("scan_section_discovery"): [
             ("-sV", "Service version"),
             ("-O", "OS detection"),
             ("--osscan-guess", "OS guess"),
@@ -1080,12 +1193,12 @@ class MainWindow(QMainWindow):
             ("--script ftp-anon", "FTP anon"),
             ("--script ssh-auth-methods", "SSH auth"),
         ],
-        "ВЫВОД": [
+        self.i18n.t("scan_section_output"): [
             ("--open", "Show open only"),
             ("-v", "Verbose"),
             ("--reason", "Show reason"),
         ],
-        "ТАЙМИНГ": [
+        self.i18n.t("scan_section_timing"): [
             ("-T1", "Sneaky (slow)"),
             ("-T2", "Polite"),
             ("-T3", "Normal"),
@@ -1168,13 +1281,13 @@ class MainWindow(QMainWindow):
         layout.addSpacing(12)
 
         # Кнопка запуска сканирования портов/цели.
-        self.btn_run_scan = QPushButton("ЗАПУСТИТЬ СКАН")
+        self.btn_run_scan = QPushButton(self.i18n.t("run_scan"))
         self.btn_run_scan.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_run_scan.clicked.connect(self._run_nmap_scan)
         layout.addWidget(self.btn_run_scan)
 
         # Кнопка экспорта результатов сканирования.
-        self.btn_export_scan = QPushButton("ЭКСПОРТ")
+        self.btn_export_scan = QPushButton(self.i18n.t("export"))
         self.btn_export_scan.setStyleSheet("")
         self.btn_export_scan.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_export_scan.setDisabled(True)
@@ -1260,7 +1373,7 @@ class MainWindow(QMainWindow):
             return
         self.target_profile_combo.blockSignals(True)
         self.target_profile_combo.clear()
-        self.target_profile_combo.addItem("Выбрать цель...", userData=None)
+        self.target_profile_combo.addItem(self.i18n.t("scan_select_target"), userData=None)
         for p in self._target_profiles:
             self.target_profile_combo.addItem(f"{p['name']} — {p['target']}", userData=p)
         self.target_profile_combo.blockSignals(False)
@@ -1390,9 +1503,9 @@ class MainWindow(QMainWindow):
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(12,0,12,0)
 
-        header_label = QLabel("// граф топологии сети")
-        header_label.setStyleSheet("color: #d0d0d0; font-size: 11px; padding-right: 10px; padding-left: 10px;")
-        header_layout.addWidget(header_label)
+        self.graph_header_label = QLabel(self.i18n.t("graph_header"))
+        self.graph_header_label.setStyleSheet("color: #d0d0d0; font-size: 11px; padding-right: 10px; padding-left: 10px;")
+        header_layout.addWidget(self.graph_header_label)
         header_layout.addSpacing(10)
 
         self.btn_export_graph = QComboBox()
@@ -1453,7 +1566,7 @@ class MainWindow(QMainWindow):
         header_layout.addSpacing(10)
 
         # Кнопка включения автообновления карты.
-        self.btn_live = QPushButton("LIVE")
+        self.btn_live = QPushButton(self.i18n.t("graph_live"))
         self.btn_live.setFixedWidth(80)
         self.btn_live.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_live.setCheckable(True)
@@ -1482,7 +1595,7 @@ class MainWindow(QMainWindow):
         header_layout.addSpacing(10)
 
         # Кнопка непрерывного мониторинга сети.
-        self.btn_monitor = QPushButton("МОНИТОРИНГ")
+        self.btn_monitor = QPushButton(self.i18n.t("graph_monitor"))
         self.btn_monitor.setFixedWidth(110)
         self.btn_monitor.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_monitor.setCheckable(True)
@@ -1637,6 +1750,11 @@ class MainWindow(QMainWindow):
 
     def _on_graph_loaded(self, ok):
         self.graph_ready = True
+        try:
+            lang = getattr(getattr(self, 'i18n', None), 'lang', 'ru')
+            self.graph_view.page().runJavaScript(f"setGraphLang('{lang}')")
+        except Exception:
+            pass
         if hasattr(self, '_pending_graph_data'):
             self._update_graph(self._pending_graph_data)
 
@@ -1692,13 +1810,13 @@ class MainWindow(QMainWindow):
         left_layout.setContentsMargins(8, 8, 8, 8)
         left_layout.setSpacing(4)
 
-        dev_label = QLabel("УСТРОЙСТВА")
+        dev_label = QLabel(self.i18n.t("devices"))
         dev_label.setStyleSheet("color: #d0d0d0; font-size: 11px; font-weight: 500; letter-spacing: 2px;")
         left_layout.addWidget(dev_label)
 
         self.ta_device_list = QTableWidget()
         self.ta_device_list.setColumnCount(2)
-        self.ta_device_list.setHorizontalHeaderLabels(["IP", "ПАКЕТЫ"])
+        self.ta_device_list.setHorizontalHeaderLabels([self.i18n.t("ip"), self.i18n.t("packets")])
         self.ta_device_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.ta_device_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.ta_device_list.setColumnWidth(1, 75)
@@ -1744,7 +1862,7 @@ class MainWindow(QMainWindow):
         header_layout.addStretch()
 
         # Кнопка запуска захвата трафика.
-        self.btn_start_capture = QPushButton("СТАРТ")
+        self.btn_start_capture = QPushButton(self.i18n.t("start"))
         self.btn_start_capture.setFixedWidth(80)
         self.btn_start_capture.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_start_capture.clicked.connect(self._ta_start)
@@ -1765,7 +1883,7 @@ class MainWindow(QMainWindow):
         header_layout.addSpacing(6)
 
         # Кнопка остановки захвата трафика.
-        self.btn_stop_capture = QPushButton("СТОП")
+        self.btn_stop_capture = QPushButton(self.i18n.t("stop"))
         self.btn_stop_capture.setFixedWidth(80)
         self.btn_stop_capture.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_stop_capture.setEnabled(False)
@@ -1786,7 +1904,7 @@ class MainWindow(QMainWindow):
         header_layout.addSpacing(6)
 
         # Кнопка очистки таблицы трафика.
-        self.btn_clear_capture = QPushButton("ОЧИСТИТЬ")
+        self.btn_clear_capture = QPushButton(self.i18n.t("clear"))
         self.btn_clear_capture.setFixedWidth(80)
         self.btn_clear_capture.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_clear_capture.clicked.connect(self._ta_clear)
@@ -1805,7 +1923,7 @@ class MainWindow(QMainWindow):
         header_layout.addSpacing(6)
 
         # Кнопка экспорта трафика в CSV.
-        self.btn_ta_export = QPushButton("ЭКСПОРТ CSV")
+        self.btn_ta_export = QPushButton(self.i18n.t("export_csv"))
         self.btn_ta_export.setFixedWidth(120)
         self.btn_ta_export.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_ta_export.setEnabled(False)
@@ -1826,7 +1944,7 @@ class MainWindow(QMainWindow):
         header_layout.addSpacing(6)
 
         # Кнопка сохранения захваченных пакетов в PCAP.
-        self.btn_ta_pcap = QPushButton("PCAP")
+        self.btn_ta_pcap = QPushButton(self.i18n.t("pcap"))
         self.btn_ta_pcap.setFixedWidth(80)
         self.btn_ta_pcap.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_ta_pcap.setToolTip("Выбрать файл PCAP для записи захвата")
@@ -1857,7 +1975,7 @@ class MainWindow(QMainWindow):
         filter_layout.addSpacing(8)
 
         self.ta_filter = QLineEdit()
-        self.ta_filter.setPlaceholderText("IP, протокол, порт или имя хоста...")
+        self.ta_filter.setPlaceholderText(self.i18n.t("ph_traffic_filter"))
         self.ta_filter.setStyleSheet("""
             QLineEdit {
                 background-color: #1e1e1e;
@@ -1885,7 +2003,7 @@ class MainWindow(QMainWindow):
         self.ta_table = QTableWidget()
         self.ta_table.setColumnCount(7)
         self.ta_table.setHorizontalHeaderLabels([
-            "#", "ВРЕМЯ", "ИСТОЧНИК", "НАЗНАЧЕНИЕ", "ПРОТОКОЛ", "ПОРТ", "РАЗМЕР"
+            "#", self.i18n.t("col_time_short"), self.i18n.t("col_src"), self.i18n.t("col_dst"), self.i18n.t("col_proto"), self.i18n.t("col_port_short"), self.i18n.t("col_size")
         ])
         self.ta_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.ta_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
@@ -2158,21 +2276,21 @@ class MainWindow(QMainWindow):
         layout.setSpacing(8)
 
         header = QHBoxLayout()
-        title = QLabel("ДИАГНОСТИКА СЕТИ")
-        title.setObjectName("title_label")
-        header.addWidget(title)
+        self.diag_title_label = QLabel(self.i18n.t("diag_title"))
+        self.diag_title_label.setObjectName("title_label")
+        header.addWidget(self.diag_title_label)
         header.addStretch()
-        self.btn_diag_refresh = QPushButton("ПРОВЕРИТЬ")
+        self.btn_diag_refresh = QPushButton(self.i18n.t("check"))
         self.btn_diag_refresh.setToolTip("Собрать информацию о сети и проверить доступность")
         self.btn_diag_refresh.clicked.connect(self._run_diagnostics_page)
-        self.btn_diag_clear = QPushButton("ОЧИСТИТЬ")
+        self.btn_diag_clear = QPushButton(self.i18n.t("clear"))
         self.btn_diag_clear.setToolTip("Очистить вывод диагностики")
         self.btn_diag_clear.clicked.connect(self._clear_diagnostics_page)
         header.addWidget(self.btn_diag_refresh)
         header.addWidget(self.btn_diag_clear)
         layout.addLayout(header)
 
-        hint = QLabel("Показывает адаптер, Wi-Fi, DHCP/DNS, шлюз, интернет и MTU. Помогает понять, почему сеть не работает.")
+        hint = QLabel(self.i18n.t("diag_desc"))
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #aaaaaa; font-size: 11px;")
         layout.addWidget(hint)
@@ -2260,23 +2378,23 @@ class MainWindow(QMainWindow):
         layout.setSpacing(8)
 
         header = QHBoxLayout()
-        title = QLabel("ЖУРНАЛ И ИНВЕНТАРЬ")
-        title.setObjectName("title_label")
-        header.addWidget(title)
+        self.inv_title_label = QLabel(self.i18n.t("inv_title"))
+        self.inv_title_label.setObjectName("title_label")
+        header.addWidget(self.inv_title_label)
         header.addStretch()
-        self.btn_inv_refresh = QPushButton("ОБНОВИТЬ")
+        self.btn_inv_refresh = QPushButton(self.i18n.t("refresh"))
         self.btn_inv_refresh.setToolTip("Обновить список известных устройств из истории")
         self.btn_inv_refresh.clicked.connect(self._refresh_inventory_page)
         header.addWidget(self.btn_inv_refresh)
         layout.addLayout(header)
 
-        hint = QLabel("Известные устройства, первое/последнее появление, метки и заметки. Новые устройства отмечаются по данным сканирований.")
-        hint.setWordWrap(True)
-        hint.setStyleSheet("color: #aaaaaa; font-size: 11px;")
-        layout.addWidget(hint)
+        self.inv_hint_label = QLabel(self.i18n.t("inv_hint"))
+        self.inv_hint_label.setWordWrap(True)
+        self.inv_hint_label.setStyleSheet("color: #aaaaaa; font-size: 11px;")
+        layout.addWidget(self.inv_hint_label)
 
         self.inventory_table = QTableWidget(0, 7)
-        self.inventory_table.setHorizontalHeaderLabels(["IP", "MAC", "Имя", "Первый раз", "Последний раз", "Метка", "Заметка"])
+        self.inventory_table.setHorizontalHeaderLabels([self.i18n.t("col_ip"), self.i18n.t("col_mac"), self.i18n.t("col_name"), self.i18n.t("col_first_seen"), self.i18n.t("col_last_seen"), self.i18n.t("col_tag"), self.i18n.t("col_note")])
         self.inventory_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.inventory_table.horizontalHeader().setStretchLastSection(True)
         self.inventory_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -2291,7 +2409,7 @@ class MainWindow(QMainWindow):
         self.btn_inv_note = QPushButton("ЗАМЕТКА")
         self.btn_inv_note.setToolTip("Задать заметку для выбранного устройства")
         self.btn_inv_note.clicked.connect(self._inventory_set_note)
-        self.btn_inv_clear = QPushButton("ОЧИСТИТЬ")
+        self.btn_inv_clear = QPushButton(self.i18n.t("clear"))
         self.btn_inv_clear.setToolTip("Очистить журнал и инвентарь устройств")
         self.btn_inv_clear.clicked.connect(self._clear_inventory)
         # Компактный стиль для кнопок действий инвентаря.
@@ -2460,16 +2578,16 @@ class MainWindow(QMainWindow):
         layout.setSpacing(8)
 
         header = QHBoxLayout()
-        title = QLabel("МОНИТОРИНГ ДОСТУПНОСТИ")
-        title.setObjectName("title_label")
-        header.addWidget(title)
+        self.mon_title_label = QLabel(self.i18n.t("mon_title"))
+        self.mon_title_label.setObjectName("title_label")
+        header.addWidget(self.mon_title_label)
         header.addStretch()
-        self.btn_mon_refresh = QPushButton("ОБНОВИТЬ")
+        self.btn_mon_refresh = QPushButton(self.i18n.t("refresh"))
         self.btn_mon_refresh.clicked.connect(self._refresh_monitoring_page)
-        self.btn_mon_export = QPushButton("ЭКСПОРТ")
+        self.btn_mon_export = QPushButton(self.i18n.t("export"))
         self.btn_mon_export.setToolTip("Экспортировать журнал мониторинга доступности")
         self.btn_mon_export.clicked.connect(self._export_monitoring_report)
-        self.btn_mon_clear = QPushButton("ОЧИСТИТЬ")
+        self.btn_mon_clear = QPushButton(self.i18n.t("clear"))
         self.btn_mon_clear.setToolTip("Очистить журнал мониторинга доступности")
         self.btn_mon_clear.clicked.connect(self._clear_monitoring_page)
         header.addWidget(self.btn_mon_refresh)
@@ -2477,7 +2595,7 @@ class MainWindow(QMainWindow):
         header.addWidget(self.btn_mon_clear)
         layout.addLayout(header)
 
-        hint = QLabel("История проверок шлюза и критичных узлов. Показывает симптомы недоступности, а не физический обрыв кабеля.")
+        hint = QLabel(self.i18n.t("mon_desc"))
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #aaaaaa; font-size: 11px;")
         layout.addWidget(hint)
@@ -2487,7 +2605,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.mon_summary)
 
         self.mon_table = QTableWidget(0, 4)
-        self.mon_table.setHorizontalHeaderLabels(["Время", "Тип", "Цель", "Статус/детали"])
+        self.mon_table.setHorizontalHeaderLabels([self.i18n.t("col_time"), self.i18n.t("col_type"), self.i18n.t("col_target"), self.i18n.t("col_status_details")])
         self.mon_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.mon_table.horizontalHeader().setStretchLastSection(True)
         self.mon_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -2592,16 +2710,16 @@ class MainWindow(QMainWindow):
         layout.setSpacing(8)
 
         header = QHBoxLayout()
-        title = QLabel("АУДИТ БЕЗОПАСНОСТИ")
-        title.setObjectName("title_label")
-        header.addWidget(title)
+        self.audit_title_label = QLabel(self.i18n.t("audit_title"))
+        self.audit_title_label.setObjectName("title_label")
+        header.addWidget(self.audit_title_label)
         header.addStretch()
-        self.btn_audit_refresh = QPushButton("ОБНОВИТЬ")
+        self.btn_audit_refresh = QPushButton(self.i18n.t("refresh"))
         self.btn_audit_refresh.clicked.connect(self._refresh_audit_page)
-        self.btn_audit_export = QPushButton("ЭКСПОРТ")
+        self.btn_audit_export = QPushButton(self.i18n.t("export"))
         self.btn_audit_export.setToolTip("Экспортировать сводку аудита в текстовый файл")
         self.btn_audit_export.clicked.connect(self._export_audit_report)
-        self.btn_audit_clear = QPushButton("ОЧИСТИТЬ")
+        self.btn_audit_clear = QPushButton(self.i18n.t("clear"))
         self.btn_audit_clear.setToolTip("Очистить вывод аудита безопасности")
         self.btn_audit_clear.clicked.connect(self._clear_audit_page)
         header.addWidget(self.btn_audit_refresh)
@@ -2708,7 +2826,7 @@ class MainWindow(QMainWindow):
 
         # Фильтр устройств в таблице.
         self.table_filter = QLineEdit()
-        self.table_filter.setPlaceholderText("Фильтр: IP, MAC, производитель, имя...")
+        self.table_filter.setPlaceholderText(self.i18n.t("ph_table_filter"))
         self.table_filter.textChanged.connect(self._filter_table)
         layout.addWidget(self.table_filter)
 
@@ -2716,7 +2834,7 @@ class MainWindow(QMainWindow):
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_menu)
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["IP", "MAC", "ПРОИЗВОДИТЕЛЬ", "ИМЯ ХОСТА"])
+        self.table.setHorizontalHeaderLabels([self.i18n.t("col_ip"), self.i18n.t("col_mac"), self.i18n.t("col_vendor"), self.i18n.t("col_hostname")])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -2787,11 +2905,11 @@ class MainWindow(QMainWindow):
         self.detail_mac = QLabel("MAC: —")
         self.detail_hostname= QLabel("HOSTNAME: —")
         self.detail_vendor  = QLabel("VENDOR: —")
-        self.detail_http = QLabel("HTTP (признак): —")
-        self.detail_tls = QLabel("TLS (признак): —")
-        self.detail_smb = QLabel("SMB (признак): —")
-        self.detail_snmp = QLabel("SNMP (признак): —")
-        self.detail_filtered = QLabel("FILTERED/NO-RESPONSE (признак): —")
+        self.detail_http = QLabel(self.i18n.t("detail_http"))
+        self.detail_tls = QLabel(self.i18n.t("detail_tls"))
+        self.detail_smb = QLabel(self.i18n.t("detail_smb"))
+        self.detail_snmp = QLabel(self.i18n.t("detail_snmp"))
+        self.detail_filtered = QLabel(self.i18n.t("detail_filtered"))
         self.detail_closed = QLabel("CLOSED: —")
         self.detail_discovery = QLabel("ОБНАРУЖЕНИЕ: —")
         self.detail_camera = QLabel("КАМЕРА: —")
@@ -2821,11 +2939,11 @@ class MainWindow(QMainWindow):
 
         # Поле для ручного ввода IP/хоста для действий.
         self.detail_target_input = QLineEdit()
-        self.detail_target_input.setPlaceholderText("IP/хост для ping, traceroute, скана портов")
+        self.detail_target_input.setPlaceholderText(self.i18n.t("detail_action_hint"))
         self.detail_target_input.setToolTip("Введите любой IP или хост: можно пинговать, трассировать и сканировать порты")
         self.detail_target_input.textChanged.connect(self._update_detail_actions_state)
         layout.addWidget(self.detail_target_input)
-        target_hint = QLabel("Можно ввести любой IP/хост для ping, traceroute и сканирования портов")
+        target_hint = QLabel(self.i18n.t("detail_action_hint"))
         target_hint.setWordWrap(True)
         target_hint.setStyleSheet("color: #aaaaaa; font-size: 10px;")
         layout.addWidget(target_hint)
@@ -3138,8 +3256,9 @@ class MainWindow(QMainWindow):
             return
         topology = self._build_topology(hosts)
         data = json.dumps(topology, ensure_ascii=False)
+        lang = getattr(getattr(self, 'i18n', None), 'lang', 'ru')
         # Передаём JSON как объект JS, чтобы избежать проблем с экранированием.
-        self.graph_view.page().runJavaScript(f"updateGraph({data})")
+        self.graph_view.page().runJavaScript(f"updateGraph({data}); setGraphLang('{lang}')")
 
     def _get_detail_target(self):
         # Цель для действий: ручной ввод или выбранное устройство.
@@ -3226,6 +3345,55 @@ class MainWindow(QMainWindow):
         self.btn_traceroute.clicked.connect(self._run_traceroute)
 
 
+    def _build_settings_page(self):
+        # Страница настроек программы.
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(12)
+
+        self.settings_title_label = QLabel(self.i18n.t("settings_title"))
+        self.settings_title_label.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: 700;")
+        layout.addWidget(self.settings_title_label)
+
+        card = QFrame()
+        card.setStyleSheet("QFrame { background-color: #252526; border: 1px solid #3c3c3c; border-radius: 10px; }")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(8)
+
+        self.settings_lang_label = QLabel(self.i18n.t("settings_language"))
+        self.settings_lang_label.setStyleSheet("color: #ffffff; font-size: 14px; font-weight: 600; border: none;")
+        card_layout.addWidget(self.settings_lang_label)
+
+        self.settings_lang_hint = QLabel(self.i18n.t("settings_language_hint"))
+        self.settings_lang_hint.setStyleSheet("color: #b0b0b0; font-size: 12px; border: none;")
+        self.settings_lang_hint.setWordWrap(True)
+        card_layout.addWidget(self.settings_lang_hint)
+
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItem("Русский", "ru")
+        self.lang_combo.addItem("English", "en")
+        idx = self.lang_combo.findData(self.i18n.lang)
+        if idx >= 0:
+            self.lang_combo.setCurrentIndex(idx)
+        self.lang_combo.currentIndexChanged.connect(self._on_language_changed)
+        self.lang_combo.setFixedWidth(220)
+        card_layout.addWidget(self.lang_combo)
+        card_layout.addStretch()
+        layout.addWidget(card)
+        layout.addStretch()
+        return page
+
+    def _on_language_changed(self):
+        # Обработчик смены языка из настроек.
+        lang = self.lang_combo.currentData() if hasattr(self, "lang_combo") else "ru"
+        if lang not in ("ru", "en") or lang == self.i18n.lang:
+            return
+        self.i18n.set_lang(lang)
+        self.settings.setValue("language", lang)
+        self.apply_language()
+
     def _build_help_page(self):
         # Страница справки: описание всех разделов и функций программы.
         page = QWidget()
@@ -3233,26 +3401,49 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        title = QLabel("Справка по функциям Eptal-Analyzer")
-        title.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: 700;")
-        layout.addWidget(title)
+        self.help_title_label = QLabel("Справка по функциям Eptal-Analyzer" if self.i18n.lang == "ru" else "Eptal-Analyzer Help Guide")
+        self.help_title_label.setStyleSheet("color: #ffffff; font-size: 24px; font-weight: 700;")
+        layout.addWidget(self.help_title_label)
 
-        subtitle = QLabel("Полное руководство по разделам боковой панели и основным возможностям программы.")
-        subtitle.setWordWrap(True)
-        subtitle.setStyleSheet("color: #b0b0b0; font-size: 13px;")
-        layout.addWidget(subtitle)
+        self.help_subtitle_label = QLabel(self.i18n.t("help_subtitle"))
+        self.help_subtitle_label.setWordWrap(True)
+        self.help_subtitle_label.setStyleSheet("color: #b0b0b0; font-size: 13px;")
+        layout.addWidget(self.help_subtitle_label)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setStyleSheet("QScrollArea { background: transparent; }")
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 8, 0)
-        content_layout.setSpacing(10)
+        self.help_content = QWidget()
+        self.help_content_layout = QVBoxLayout(self.help_content)
+        self.help_content_layout.setContentsMargins(0, 0, 8, 0)
+        self.help_content_layout.setSpacing(10)
+        self._populate_help_page()
+        scroll.setWidget(self.help_content)
+        layout.addWidget(scroll, stretch=1)
+        return page
+
+    def _populate_help_page(self):
+        # Заполнение справки с учётом текущего языка.
+        layout = getattr(self, "help_content_layout", None)
+        if layout is None:
+            return
+        while layout.count():
+            item = layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+            sub = item.layout()
+            if sub is not None:
+                while sub.count():
+                    si = sub.takeAt(0)
+                    sw = si.widget()
+                    if sw is not None:
+                        sw.deleteLater()
 
         assets = os.path.join(os.path.dirname(__file__), "../img", "icons")
-        sections = [
+        lang = self.i18n.lang
+        ru_sections = [
             ("home.svg", "Главная", [
                 "Обзор сети: найденные устройства, быстрые действия и сводка по состоянию.",
                 "Запуск сканирования, переход к карте, диагностике, инвентарю и журналу.",
@@ -3311,6 +3502,66 @@ class MainWindow(QMainWindow):
                 "Используйте его как быстрое руководство по программе.",
             ]),
         ]
+        en_sections = [
+            ("home.svg", "Home", [
+                "Network overview: discovered devices, quick actions, and status summary.",
+                "Start scans, navigate to map, diagnostics, inventory, and journal.",
+                "Quick access to history, reports, and main operations.",
+            ]),
+            ("eye.svg", "Port Scan", [
+                "Target: IP, CIDR, range, or hostname. You can save target profiles.",
+                "Scan modes: -F (fast, common ports), -sS (SYN/half-open), -sT (TCP connect), -sU (UDP), -sN (NULL), -sX (Xmas), -p- (all 65535 ports), -A (aggressive: OS/versions/scripts/traceroute), -Pn (skip host discovery ping).",
+                "Detection: -sV (service versions), -O (OS detection), --osscan-guess (more aggressive OS guessing).",
+                "NSE scripts: -sC (default safe), --script banner (service banner), --script safe (safe), --script vuln (known vulnerability checks), --script vulners (CVE by version), --script malware (malware/backdoor indicators), --script discovery (additional discovery).",
+                "HTTP/SSL/SMB/DNS/FTP/SSH scripts: http-enum (paths/directories), http-headers (headers), http-methods (allowed methods), ssl-cert (certificate), ssl-enum-ciphers (ciphers), smb-enum-shares (SMB shares), smb-enum-users (SMB users), dns-brute (subdomains), ftp-anon (anonymous FTP), ssh-auth-methods (SSH auth methods).",
+                "Output: --open (open only), -v (verbose), --reason (port state reason).",
+                "Timing: -T1 slow/stealthy ... -T5 very fast/noisy; -T3 normal.",
+                "You can add custom flags in the user parameters field. Risky flags are marked with a warning.",
+                "Scan result export and task queue support.",
+            ]),
+            ("network2.svg", "Network Map", [
+                "Visual graph of discovered devices and connections.",
+                "Helps assess topology and node placement visually.",
+                "Uses scan results and device data.",
+            ]),
+            ("attack.svg", "Attack Surface", [
+                "Analysis of open services, risks, and potential vulnerabilities.",
+                "Shows ports, services, risk scores, and problem indicators.",
+                "Used for auditing host external/internal surface.",
+            ]),
+            ("traffic.svg", "Traffic Analysis", [
+                "Real-time packet capture (Scapy/Npcap, usually requires administrator rights).",
+                "Filters: text filter, device selection, BPF filter.",
+                "PCAP: file selection and capture writing to PCAP.",
+                "Stats: top proto/port/top source, flow count, dominant-source anomaly warning.",
+                "Packet table with Info column (simple DNS/HTTP indicators), CSV export.",
+            ]),
+            ("diagnostics.svg", "Network Diagnostics", [
+                "Checks adapter, Wi-Fi, DHCP/DNS, gateway, internet, and MTU.",
+                "Quick assessment of local network and connectivity state.",
+                "Useful for availability, DNS, or routing issues.",
+            ]),
+            ("inventory.svg", "Journal & Inventory", [
+                "Device list, appearance history, changes, and tags.",
+                "Notifications about new devices and changes.",
+                "Clear inventory/journal when needed.",
+            ]),
+            ("monitoring.svg", "Availability Monitoring", [
+                "Checks gateway/hosts/targets availability on schedule or manually.",
+                "Check history, OK/FAIL statuses, error details.",
+                "Export and clear monitoring log.",
+            ]),
+            ("audit.svg", "Security Audit", [
+                "Risk summary, open/filtered ports, IoT/camera and vulnerability indicators.",
+                "Audit export to TXT/CSV.",
+                "Heuristics and indicators are marked as requiring confirmation.",
+            ]),
+            ("help.svg", "Help", [
+                "This section: description of all features and sidebar elements.",
+                "Use it as a quick guide to the program.",
+            ]),
+        ]
+        sections = en_sections if lang == "en" else ru_sections
 
         for icon_file, name, items in sections:
             card = QFrame()
@@ -3337,12 +3588,9 @@ class MainWindow(QMainWindow):
                 bullet.setStyleSheet("color: #cccccc; font-size: 12px; border: none;")
                 text_box.addWidget(bullet)
             card_layout.addLayout(text_box, stretch=1)
-            content_layout.addWidget(card)
+            layout.addWidget(card)
 
-        content_layout.addStretch()
-        scroll.setWidget(content)
-        layout.addWidget(scroll, stretch=1)
-        return page
+        layout.addStretch()
     def _build_attackSurface_page(self):
         self.scanning = False
         page = QWidget()
@@ -3432,7 +3680,7 @@ class MainWindow(QMainWindow):
         self.as_target.textChanged.connect(_on_as_target_changed)
 
         # Кнопка экспорта результатов поверхности атаки.
-        self.as_export_btn = QPushButton("ЭКСПОРТ CSV")
+        self.as_export_btn = QPushButton(self.i18n.t("export_csv"))
         self.as_export_btn.setDisabled(True)
         self.as_export_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.as_export_btn.setStyleSheet("""
@@ -3482,13 +3730,13 @@ class MainWindow(QMainWindow):
         sep.setStyleSheet("background-color: #3c3c3c; margin-top: 4px; margin-bottom: 4px;")
         left_layout.addWidget(sep)
 
-        history_label = QLabel("ИСТОРИЯ")
+        history_label = QLabel(self.i18n.t("btn_history"))
         history_label.setStyleSheet("color: #d0d0d0; font-size: 10px; letter-spacing: 2px;")
         left_layout.addWidget(history_label)
 
         self.as_history = QTableWidget()
         self.as_history.setColumnCount(2)
-        self.as_history.setHorizontalHeaderLabels(["ЦЕЛЬ", "РИСК"])
+        self.as_history.setHorizontalHeaderLabels([self.i18n.t("target").upper(), self.i18n.t("col_risk")])
         self.as_history.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.as_history.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.as_history.setColumnWidth(1, 75)
@@ -3537,7 +3785,7 @@ class MainWindow(QMainWindow):
 
         self.as_ports_table = QTableWidget()
         self.as_ports_table.setColumnCount(5)
-        self.as_ports_table.setHorizontalHeaderLabels(["ПОРТ", "ПРОТОКОЛ", "СЕРВИС", "ВЕРСИЯ", "РИСК"])
+        self.as_ports_table.setHorizontalHeaderLabels([self.i18n.t("col_port"), self.i18n.t("col_proto"), self.i18n.t("col_service"), self.i18n.t("col_version"), self.i18n.t("col_risk")])
         self.as_ports_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.as_ports_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.as_ports_table.setColumnWidth(0, 80)
@@ -3566,7 +3814,7 @@ class MainWindow(QMainWindow):
 
         self.as_cve_table = QTableWidget()
         self.as_cve_table.setColumnCount(5)
-        self.as_cve_table.setHorizontalHeaderLabels(["CVE ID", "CVSS", "ПОРТ", "СЕРВИС", "ДЕТАЛИ"])
+        self.as_cve_table.setHorizontalHeaderLabels([self.i18n.t("col_cve"), self.i18n.t("col_cvss"), self.i18n.t("col_port"), self.i18n.t("col_service"), self.i18n.t("col_details")])
         self.as_cve_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self.as_cve_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.as_cve_table.setColumnWidth(0, 140)

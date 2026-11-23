@@ -12,17 +12,6 @@
 ---
 
 
-## Скриншоты — Eptal-Analyzer
-
-<p>
-  <a href="img/screenshots/screenshot-1.png"><img src="img/screenshots/screenshot-1.png" width="420" alt="Eptal-Analyzer — скриншот 1"></a>
-  <a href="img/screenshots/screenshot-2.png"><img src="img/screenshots/screenshot-2.png" width="420" alt="Eptal-Analyzer — скриншот 2"></a>
-</p>
-<p>
-  <a href="img/screenshots/screenshot-3.png"><img src="img/screenshots/screenshot-3.png" width="420" alt="Eptal-Analyzer — скриншот 3"></a>
-  <a href="img/screenshots/screenshot-4.png"><img src="img/screenshots/screenshot-4.png" width="420" alt="Eptal-Analyzer — скриншот 4"></a>
-</p>
-
 ## Что сделано и что обновлено
 
 ### Основные обновления
